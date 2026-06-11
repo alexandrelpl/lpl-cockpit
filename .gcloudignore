@@ -1,0 +1,11 @@
+# Fichiers à NE PAS envoyer lors du déploiement Cloud Run (--source .)
+.git/
+.gitignore
+.venv/
+__pycache__/
+*.pyc
+.env
+*.env
+!.env.example
+README.md
+DEPLOY.md

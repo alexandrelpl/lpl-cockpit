@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import traceback
 
-from ingestion import shopify_orders, shopify_traffic, meta_ads, google_ads, bq_setup
+from ingestion import shopify_orders, shopify_traffic, meta_ads, google_ads, bq_setup, bq_io
 
 SHOPIFY_REFRESH_DAYS = int(os.environ.get("SHOPIFY_REFRESH_DAYS", "40"))
 ADS_REFRESH_DAYS     = int(os.environ.get("ADS_REFRESH_DAYS", "14"))
@@ -75,6 +75,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "refresh"
     if cmd == "setup":
         bq_setup.run()
+    elif cmd == "flush":
+        bq_io.flush_default()
     elif cmd == "backfill":
         shopify_orders.backfill(int(sys.argv[2]) if len(sys.argv) > 2 else 24)
     elif cmd == "refresh":

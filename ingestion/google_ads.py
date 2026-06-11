@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
 
+from ingestion import bq_io
+
 BQ_PROJECT  = os.environ["BQ_PROJECT"]
 BQ_DATASET  = os.environ.get("BQ_DATASET", "lpl_cockpit")
 CUSTOMER_ID = os.environ.get("GOOGLE_ADS_CUSTOMER_ID", "")  # compte LPL, sans tirets
@@ -75,19 +77,9 @@ def ingest(since: str, until: str) -> int:
 
     bq = bigquery.Client(project=BQ_PROJECT)
     table = f"{BQ_PROJECT}.{BQ_DATASET}.google_daily"
-    bq.query(
-        f"DELETE FROM `{table}` WHERE date BETWEEN @s AND @u",
-        job_config=bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("s", "DATE", since),
-            bigquery.ScalarQueryParameter("u", "DATE", until),
-        ]),
-    ).result()
-    if rows:
-        errors = bq.insert_rows_json(table, rows)
-        if errors:
-            raise RuntimeError(f"BigQuery insert errors: {errors}")
-    print(f"[google] {len(rows)} lignes campagne x jour écrites")
-    return len(rows)
+    n = bq_io.load_replace_window(bq, table, rows, since, until)
+    print(f"[google] {n} lignes campagne x jour écrites")
+    return n
 
 
 def refresh(days: int = 14) -> int:

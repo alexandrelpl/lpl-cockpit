@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 from google.cloud import bigquery
 
+from ingestion import bq_io
+
 SHOP_URL     = os.environ["SHOPIFY_SHOP_URL"]
 ACCESS_TOKEN = os.environ["SHOPIFY_ACCESS_TOKEN"]
 API_VERSION  = os.environ.get("SHOPIFY_API_VERSION", "2024-01")
@@ -46,7 +48,14 @@ def _fetch(since: str, until: str) -> list[list]:
         headers={"X-Shopify-Access-Token": ACCESS_TOKEN, "Content-Type": "application/json"},
         timeout=60,
     )
-    data = r.json()["data"]["shopifyqlQuery"]
+    body = r.json()
+    if "errors" in body and body["errors"]:
+        raise RuntimeError(f"ShopifyQL (Admin API) a renvoyé une erreur GraphQL : {body['errors']}. "
+                           f"Le champ shopifyqlQuery n'est peut-être pas dispo sur cette version d'API "
+                           f"ou le scope read_analytics manque. À régler séparément (trafic non bloquant).")
+    data = (body.get("data") or {}).get("shopifyqlQuery")
+    if not data:
+        raise RuntimeError(f"Réponse ShopifyQL inattendue (pas de 'data'). Brut: {str(body)[:400]}")
     if data.get("parseErrors"):
         raise RuntimeError(f"ShopifyQL parse errors: {data['parseErrors']}")
     return data["tableData"]["rowData"]
@@ -68,19 +77,9 @@ def ingest(since: str, until: str) -> int:
 
     client = bigquery.Client(project=BQ_PROJECT)
     table = f"{BQ_PROJECT}.{BQ_DATASET}.shopify_traffic_daily"
-    client.query(
-        f"DELETE FROM `{table}` WHERE date BETWEEN @s AND @u",
-        job_config=bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("s", "DATE", since),
-            bigquery.ScalarQueryParameter("u", "DATE", until),
-        ]),
-    ).result()
-    if rows:
-        errors = client.insert_rows_json(table, rows)
-        if errors:
-            raise RuntimeError(f"BigQuery insert errors: {errors}")
-    print(f"[traffic] {len(rows)} jours écrits")
-    return len(rows)
+    n = bq_io.load_replace_window(client, table, rows, since, until)
+    print(f"[traffic] {n} jours écrits")
+    return n
 
 
 def refresh(days: int = 40) -> int:

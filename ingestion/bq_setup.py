@@ -22,9 +22,13 @@ def run() -> None:
     sql = SCHEMA.read_text(encoding="utf-8")
     # le schéma référence `lpl_cockpit.<table>` -> on qualifie avec le projet courant
     sql = sql.replace("`lpl_cockpit.", f"`{BQ_PROJECT}.{BQ_DATASET}.")
-    for stmt in [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]:
-        client.query(stmt).result()
-    print("[bq] tables + vue cockpit_daily créées")
+    # retirer TOUS les commentaires (-- jusqu'à la fin de ligne) AVANT de découper
+    # sur ';', sinon un ';' présent dans un commentaire casse le découpage.
+    no_comments = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
+    statements = [s.strip() for s in no_comments.split(";") if s.strip()]
+    for stmt in statements:
+        client.query(stmt, location=LOCATION).result()
+    print(f"[bq] {len(statements)} objets créés (tables + vue cockpit_daily)")
 
 
 if __name__ == "__main__":

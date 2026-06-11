@@ -25,12 +25,20 @@ Le token Shopify est lu depuis la variable d'env SHOPIFY_ACCESS_TOKEN
 
 from __future__ import annotations
 import os
+import socket
 import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import requests
 from google.cloud import bigquery
+
+from ingestion import bq_io
+
+# Garde-fou : impose un délai max à TOUTE opération socket (y compris la
+# résolution DNS, que le timeout de `requests` ne couvre pas). Sans ça, un appel
+# réseau peut « pendre » indéfiniment au lieu d'échouer (cas observé sur Cloud Run).
+socket.setdefaulttimeout(120)
 
 SHOP_URL      = os.environ["SHOPIFY_SHOP_URL"]            # ex: test-store20.myshopify.com (= PROD LPL)
 ACCESS_TOKEN  = os.environ["SHOPIFY_ACCESS_TOKEN"]
@@ -67,27 +75,34 @@ CATEGORY_KEYS = [
 
 
 def _graphql(query_string: str, cursor: str | None) -> dict:
-    """Un appel GraphQL avec gestion basique du throttling Shopify."""
+    """Un appel GraphQL robuste : reprise sur incident réseau + gestion du throttling."""
     payload = {"query": ORDERS_QUERY, "variables": {"query": query_string, "cursor": cursor}}
-    for attempt in range(6):
-        r = requests.post(
-            GRAPHQL_URL,
-            json=payload,
-            headers={"X-Shopify-Access-Token": ACCESS_TOKEN, "Content-Type": "application/json"},
-            timeout=60,
-        )
+    headers = {"X-Shopify-Access-Token": ACCESS_TOKEN, "Content-Type": "application/json"}
+    last_err = None
+    for attempt in range(8):
+        try:
+            # timeout=(connexion, lecture) ; le socket par défaut (120s) couvre le DNS
+            r = requests.post(GRAPHQL_URL, json=payload, headers=headers, timeout=(15, 90))
+        except requests.exceptions.RequestException as e:
+            last_err = e
+            print(f"  [shopify] incident réseau (tentative {attempt + 1}/8) : {e}", flush=True)
+            time.sleep(3 * (attempt + 1))
+            continue
         if r.status_code == 429:
             time.sleep(2 * (attempt + 1))
             continue
+        if r.status_code >= 500:
+            print(f"  [shopify] HTTP {r.status_code} (tentative {attempt + 1}/8)", flush=True)
+            time.sleep(3 * (attempt + 1))
+            continue
         data = r.json()
         if "errors" in data and data["errors"]:
-            # THROTTLED -> backoff ; sinon on lève
             if any(e.get("extensions", {}).get("code") == "THROTTLED" for e in data["errors"]):
                 time.sleep(2 * (attempt + 1))
                 continue
             raise RuntimeError(f"Shopify GraphQL errors: {data['errors']}")
         return data["data"]["orders"]
-    raise RuntimeError("Shopify GraphQL: throttling persistant après plusieurs tentatives.")
+    raise RuntimeError(f"Shopify GraphQL: échec après 8 tentatives. Dernière erreur réseau : {last_err}")
 
 
 def _analyze_order(order: dict) -> dict | None:
@@ -137,9 +152,13 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
     """Agrège les commandes incluses par date locale (Europe/Paris)."""
     query_string = f"created_at:>={since}T00:00:00Z AND created_at:<={until}T23:59:59Z"
     stats: dict[str, dict] = {}
-    cursor, has_next = None, True
+    cursor, has_next, page = None, True, 0
     while has_next:
         orders = _graphql(query_string, cursor)
+        page += 1
+        if page % 20 == 0:
+            done = sum(d["orders"] for d in stats.values())
+            print(f"  ... {page} pages lues, {done} commandes incluses", flush=True)
         for order in orders["nodes"]:
             res = _analyze_order(order)
             if res is None:
@@ -157,18 +176,10 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
 
 
 def _write_bq(stats: dict[str, dict], since: str, until: str) -> int:
-    """Remplace les jours de la fenêtre : DELETE puis INSERT (mise à jour chirurgicale)."""
+    """Remplace la fenêtre [since, until] via load job (cf. bq_io)."""
     client = bigquery.Client(project=BQ_PROJECT)
     table = f"{BQ_PROJECT}.{BQ_DATASET}.shopify_orders_daily"
     now = datetime.now(timezone.utc).isoformat()
-
-    client.query(
-        f"DELETE FROM `{table}` WHERE date BETWEEN @s AND @u",
-        job_config=bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("s", "DATE", since),
-            bigquery.ScalarQueryParameter("u", "DATE", until),
-        ]),
-    ).result()
 
     rows = []
     for day, d in sorted(stats.items()):
@@ -182,11 +193,7 @@ def _write_bq(stats: dict[str, dict], since: str, until: str) -> int:
             "others_new": d["others_new"], "others_existing": d["others_existing"],
             "updated_at": now,
         })
-    if rows:
-        errors = client.insert_rows_json(table, rows)
-        if errors:
-            raise RuntimeError(f"BigQuery insert errors: {errors}")
-    return len(rows)
+    return bq_io.load_replace_window(client, table, rows, since, until)
 
 
 def ingest(since: str, until: str) -> int:
@@ -204,9 +211,18 @@ def refresh(days: int = 40) -> int:
 
 
 def backfill(months: int = 24) -> int:
+    """Charge l'historique par tranches mensuelles (observable et repartable)."""
     today = datetime.now(LOCAL_TZ).date()
-    since = (today - timedelta(days=int(months * 30.5))).isoformat()
-    return ingest(since, today.isoformat())
+    start = today - timedelta(days=int(months * 30.5))
+    total, window_start, chunk = 0, start, 0
+    while window_start <= today:
+        window_end = min(window_start + timedelta(days=30), today)
+        chunk += 1
+        print(f"=== Tranche {chunk} : {window_start} -> {window_end} ===", flush=True)
+        total += ingest(window_start.isoformat(), window_end.isoformat())
+        window_start = window_end + timedelta(days=1)
+    print(f"[shopify] BACKFILL TERMINÉ : {total} jours écrits au total")
+    return total
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 from google.cloud import bigquery
 
+from ingestion import bq_io
+
 META_TOKEN   = os.environ["META_ACCESS_TOKEN"]
 META_ACCOUNT = os.environ.get("META_ACCOUNT_ID", "305450184")   # sans 'act_'
 API_VERSION  = os.environ.get("META_API_VERSION", "v21.0")
@@ -72,19 +74,9 @@ def ingest(since: str, until: str) -> int:
 
     client = bigquery.Client(project=BQ_PROJECT)
     table = f"{BQ_PROJECT}.{BQ_DATASET}.meta_daily"
-    client.query(
-        f"DELETE FROM `{table}` WHERE date BETWEEN @s AND @u",
-        job_config=bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("s", "DATE", since),
-            bigquery.ScalarQueryParameter("u", "DATE", until),
-        ]),
-    ).result()
-    if rows:
-        errors = client.insert_rows_json(table, rows)
-        if errors:
-            raise RuntimeError(f"BigQuery insert errors: {errors}")
-    print(f"[meta] {len(rows)} lignes campagne x jour écrites")
-    return len(rows)
+    n = bq_io.load_replace_window(client, table, rows, since, until)
+    print(f"[meta] {n} lignes campagne x jour écrites")
+    return n
 
 
 def refresh(days: int = 14) -> int:
