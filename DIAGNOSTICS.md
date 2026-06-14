@@ -35,13 +35,13 @@ Cause la plus fréquente : **jeton long-lived expiré (~60 j)**.
 3. Robustesse durable : passer à un **token System User** (n'expire pas) — cf. IMPROVEMENTS.md.
 
 ### B. Sessions en retard
-Cause : le **scraper Mac n'a pas alimenté le Sheet** (Mac éteint / vacances) — le job ne peut
-pas inventer la donnée.
-1. Vérifier la dernière date du Sheet « Sessions » (onglet dynamique).
-2. Si le Sheet est à jour mais pas BigQuery : relancer la lecture →
-   `gcloud run jobs execute lpl-cockpit-sessions --region europe-west1` (ou bouton dans l'appli).
-3. Si le Sheet n'est pas à jour : relancer le scraper côté Mac. Le bandeau de l'appli prévient
-   déjà l'utilisateur que les sessions sont incomplètes.
+Source = **GA4** (autonome, OAuth utilisateur), fenêtre 3 j. L'archive ancienne (avril 2024 →)
+vient du scraper Shopify et reste figée en base.
+1. Relancer : `gcloud run jobs execute lpl-cockpit-sessions --region europe-west1` (= bouton appli) ou attendre le job de nuit.
+2. Si échec : logs du job sessions (souvent jeton GA4/échec OAuth, ou GA4_PROPERTY_ID manquant).
+3. ⚠️ **Continuité 14 mois** : le rafraîchissement ne touche QUE les 3 derniers jours, donc
+   l'historique GA4 s'accumule à vie en base. **Ne JAMAIS** lancer un backfill GA4 sur une plage
+   plus ancienne que la rétention GA4 (~14 mois) — ça écraserait l'historique conservé par du vide.
 
 ### C. Google en retard
 Cause : le **script Google Ads** n'a pas écrit son Sheet de coûts (onglet « GoogleAds »).
@@ -58,8 +58,10 @@ gcloud run jobs update lpl-cockpit-sessions --region europe-west1 --command=pyth
   --set-env-vars BQ_PROJECT=shopify-data-ltv,BQ_DATASET=lpl_cockpit,BQ_LOCATION=EU,SESSIONS_SHEET_ID=1uHl3DRVfhqAQnVT6lpm1tfbBG5BTfWd7RuasCy4SJAs
 gcloud run jobs update lpl-cockpit-job --region europe-west1 --command=python --args=job.py
 ```
-**Règle :** tout redéploiement de job avec `--source .` doit ré-inclure `--command=python --args=…`
-(et garder les env). Préférer `gcloud run jobs update` pour un simple changement de config (pas de rebuild).
+**Règle :** tout redéploiement de job avec `--source .` doit ré-inclure `--command=python --args=…`,
+`--service-account $SA` ET les env, sinon ils retombent aux défauts (gunicorn, SA compute, env vide).
+`Permission denied on secret … for …-compute@…` = il manque `--service-account $SA`.
+Préférer `gcloud run jobs update` pour un simple changement de config (pas de rebuild).
 
 ### D. CA en retard / trous, ou job de nuit échoué
 1. `gcloud run jobs executions list --job lpl-cockpit-job --region europe-west1 --limit 3`

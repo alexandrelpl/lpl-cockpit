@@ -38,8 +38,9 @@ def daily_refresh() -> dict:
         # (l'ancienne lecture via Sheet `google_sheet` reste dispo en secours si besoin)
         ("google",          lambda: google_ads.refresh(ADS_REFRESH_DAYS)),
         ("google_assets",   lambda: google_asset_groups.refresh(ADS_REFRESH_DAYS)),
-        # Sessions Shopify lues depuis le Sheet (scraper). CVR calculé côté appli.
-        ("sessions",        lambda: sessions_sheet.refresh_from_sheet()),
+        # Sessions via GA4 (source autonome). Fenêtre 3 j seulement -> l'historique plus ancien
+        # reste figé en base = continuité conservée même après la rétention 14 mois de GA4.
+        ("sessions",        lambda: ga4_traffic.refresh(3)),
         ("shopify_orders",  lambda: shopify_orders.refresh(SHOPIFY_REFRESH_DAYS)),
     ]:
         try:
