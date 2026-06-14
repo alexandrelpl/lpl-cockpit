@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Accès refusé</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#f6f7f9;color:#1a1d21;
+display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+.box{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:32px;max-width:420px;text-align:center}
+h1{font-size:1.1rem}a{color:#4f6ef7}</style></head>
+<body><div class="box">
+<h1>Accès réservé</h1>
+<p>Le compte <b>{{ email or "inconnu" }}</b> n'appartient pas au domaine <b>{{ domain }}</b>.</p>
+<p>Connecte-toi avec ton adresse <b>@{{ domain }}</b>.</p>
+<p><a href="/login">Réessayer</a></p>
+</div></body></html>

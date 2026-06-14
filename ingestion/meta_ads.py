@@ -85,6 +85,22 @@ def refresh(days: int = 14) -> int:
     return ingest(since, today.isoformat())
 
 
+def backfill(days: int = 760, chunk: int = 90) -> int:
+    """Historique Meta par tranches (l'API refuse une trop grande plage d'un coup)."""
+    today = datetime.now(timezone.utc).date()
+    ws, total = today - timedelta(days=days), 0
+    while ws < today:
+        we = min(ws + timedelta(days=chunk), today)
+        print(f"=== Meta {ws} -> {we} ===", flush=True)
+        total += ingest(ws.isoformat(), we.isoformat())
+        ws = we + timedelta(days=1)
+    print(f"[meta] BACKFILL terminé : {total} lignes campagne x jour")
+    return total
+
+
 if __name__ == "__main__":
     import sys
-    refresh(int(sys.argv[1]) if len(sys.argv) > 1 else 14)
+    if len(sys.argv) > 1 and sys.argv[1] == "backfill":
+        backfill(int(sys.argv[2]) if len(sys.argv) > 2 else 760)
+    else:
+        refresh(int(sys.argv[1]) if len(sys.argv) > 1 else 14)

@@ -88,6 +88,22 @@ def refresh(days: int = 14) -> int:
     return ingest(since, today.isoformat())
 
 
+def backfill(days: int = 760, chunk: int = 180) -> int:
+    """Historique Google Ads par tranches (progression + robustesse)."""
+    today = datetime.now(timezone.utc).date()
+    ws, total = today - timedelta(days=days), 0
+    while ws < today:
+        we = min(ws + timedelta(days=chunk), today)
+        print(f"=== Google {ws} -> {we} ===", flush=True)
+        total += ingest(ws.isoformat(), we.isoformat())
+        ws = we + timedelta(days=1)
+    print(f"[google] BACKFILL terminé : {total} lignes campagne x jour")
+    return total
+
+
 if __name__ == "__main__":
     import sys
-    refresh(int(sys.argv[1]) if len(sys.argv) > 1 else 14)
+    if len(sys.argv) > 1 and sys.argv[1] == "backfill":
+        backfill(int(sys.argv[2]) if len(sys.argv) > 2 else 760)
+    else:
+        refresh(int(sys.argv[1]) if len(sys.argv) > 1 else 14)

@@ -21,7 +21,8 @@ from __future__ import annotations
 import os
 import traceback
 
-from ingestion import shopify_orders, shopify_traffic, meta_ads, google_ads, bq_setup, bq_io
+from ingestion import (shopify_orders, shopify_traffic, meta_ads, google_ads, google_asset_groups,
+                       google_sheet, ga4_traffic, sessions_sheet, bq_setup, bq_io)
 
 SHOPIFY_REFRESH_DAYS = int(os.environ.get("SHOPIFY_REFRESH_DAYS", "40"))
 ADS_REFRESH_DAYS     = int(os.environ.get("ADS_REFRESH_DAYS", "14"))
@@ -30,11 +31,16 @@ ADS_REFRESH_DAYS     = int(os.environ.get("ADS_REFRESH_DAYS", "14"))
 def daily_refresh() -> dict:
     results: dict[str, object] = {}
     # Chaque source est isolée : une panne (ex. Google non approuvé) n'arrête pas les autres.
+    # Sources rapides d'abord (ads), Shopify (lent, ~25 min) en dernier.
     for name, fn in [
-        ("shopify_orders",  lambda: shopify_orders.refresh(SHOPIFY_REFRESH_DAYS)),
-        ("shopify_traffic", lambda: shopify_traffic.refresh(SHOPIFY_REFRESH_DAYS)),
         ("meta",            lambda: meta_ads.refresh(ADS_REFRESH_DAYS)),
+        # Google Ads via l'API officielle (GAQL) — accès Basic obtenu.
+        # (l'ancienne lecture via Sheet `google_sheet` reste dispo en secours si besoin)
         ("google",          lambda: google_ads.refresh(ADS_REFRESH_DAYS)),
+        ("google_assets",   lambda: google_asset_groups.refresh(ADS_REFRESH_DAYS)),
+        # Sessions Shopify lues depuis le Sheet (scraper). CVR calculé côté appli.
+        ("sessions",        lambda: sessions_sheet.refresh_from_sheet()),
+        ("shopify_orders",  lambda: shopify_orders.refresh(SHOPIFY_REFRESH_DAYS)),
     ]:
         try:
             results[name] = fn()

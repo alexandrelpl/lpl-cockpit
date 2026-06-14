@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Marketing - Le Petit Lunetier</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<style>
+  :root{
+    color-scheme:light;
+    --bg:#f6f7f9; --card:#fff; --line:#e6e9ee; --ink:#1d2126; --muted:#6b7280;
+    --accent:#2E8FA6; --accent-d:#26788c;
+    --good:#3f9d57; --bad:#c2415e; --amber:#b3771e;
+    --rose:#FCE4EA; --orange:#FCEFD9; --lemon:#F7F8DE; --green:#E2F7DF; --turq:#DBF6F2; --cyan:#DEF0FC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:16px;padding:14px 22px;background:var(--card);border-bottom:1px solid var(--line)}
+  header h1{font-size:1.05rem;margin:0;flex:1;letter-spacing:-.01em}
+  header .who{font-size:.78rem;color:var(--muted)}
+  header a{font-size:.78rem;color:var(--accent);text-decoration:none}
+  select{font-size:.82rem;padding:5px 8px;border:1px solid #d1d5db;border-radius:7px;background:#fff}
+  .wrap{padding:20px 22px;max-width:1200px;margin:0 auto}
+  .health{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:16px}
+  .health .ht{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .hsrc{font-size:.76rem;color:#374151;display:inline-flex;align-items:center;gap:6px}
+  .hdot{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .hdot.ok{background:var(--good)} .hdot.warn{background:var(--amber)} .hdot.stale{background:var(--bad)} .hdot.empty{background:#9ca3af}
+  .health.warn{background:#fff8ec;border-color:#f0d59a} .health.stale{background:#fdecef;border-color:#f0bcc8}
+  .health .msg{flex-basis:100%;font-size:.74rem;color:#7a5b09}
+  .health.stale .msg{color:#9b2740}
+  .btn{font-size:.74rem;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:7px;padding:6px 12px;cursor:pointer}
+  .btn:hover{background:var(--accent-d)} .btn:disabled{opacity:.55;cursor:default}
+  .tabnav{margin-bottom:20px}
+  .tabs{display:inline-flex;gap:4px;background:#eaedf1;border:1px solid #dde1e7;border-radius:11px;padding:5px}
+  .tab{padding:10px 22px;font-size:.92rem;font-weight:600;color:#5b6472;cursor:pointer;border:none;background:none;border-radius:8px;transition:.12s}
+  .tab:hover{color:var(--ink);background:#f4f6f9}
+  .tab.active{color:#fff;background:var(--accent);box-shadow:0 1px 4px rgba(46,143,166,.4)}
+  .view{display:none}.view.active{display:block}
+  .seclabel{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9aa1ab;margin:22px 0 9px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .card .label{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:5px}
+  .card .value{font-size:1.3rem;font-weight:650}
+  .card .value.warn{color:var(--bad)}
+  .chips{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-size:.7rem;font-weight:600;padding:1px 7px;border-radius:10px;background:#eef1f4;color:#516072}
+  .chip.good{background:var(--green);color:#2f7d4a}.chip.bad{background:var(--rose);color:#b23a55}.chip.flat{background:#f1f2f4;color:#6b7280}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+  .panel h2{font-size:.88rem;margin:0 0 12px;color:#374151}
+  .panel h2.bigttl{font-size:1.2rem;font-weight:800;letter-spacing:.05em;color:#1d2126}
+  .panel h2.bigttl span{display:block;font-size:.72rem;font-weight:500;letter-spacing:.01em;text-transform:none;color:#9aa1ab;margin-top:3px}
+  .chartbox{position:relative;height:280px}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th,td{text-align:right;padding:7px 9px;border-bottom:1px solid #eef0f2}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase}
+  td.warn,td.bad{color:var(--bad);font-weight:600}
+  td.good{color:var(--good);font-weight:600}
+  .legend{font-size:.72rem;color:var(--muted);margin:0 0 10px}
+  .legend b{font-weight:600}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px;vertical-align:middle}
+  .dot-g{background:var(--good)}
+  .dot-r{background:#e0894b}
+  .grad{display:inline-block;width:90px;height:11px;border-radius:3px;vertical-align:middle;margin:0 5px;background:linear-gradient(90deg,#FCE4EA,#FCEFD9,#F7F8DE,#E2F7DF,#DBF6F2,#DEF0FC)}
+  #cos-table table,#cos-weekly table,#cos-monthly table{table-layout:fixed;width:100%}
+  #cos-table th,#cos-table td,#cos-weekly th,#cos-weekly td,#cos-monthly th,#cos-monthly td{overflow:hidden;text-overflow:ellipsis}
+  .cmp{font-size:.64rem;line-height:1.15;margin-top:1px}
+  .cmp-up{color:var(--good)}.cmp-down{color:var(--bad)}.cmp-flat{color:#9ca3af}
+  .pill{font-size:.66rem;padding:1px 7px;border-radius:10px;background:var(--turq);color:#1f6b78;font-weight:600}
+  .alerts{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:820px){.alerts{grid-template-columns:1fr 1fr 1fr}}
+  .alert h3{font-size:.8rem;margin:0 0 8px}
+  .alert.red h3{color:var(--bad)}.alert.amber h3{color:var(--amber)}
+  .empty{color:var(--muted);font-size:.82rem;padding:18px 0;text-align:center}
+  .banner{background:#fff8ec;border:1px solid #f0d59a;color:#7a5b09;border-radius:9px;padding:10px 13px;font-size:.78rem;margin-bottom:14px}
+  .loading{color:var(--muted);font-size:.85rem;padding:30px 0;text-align:center}
+
+  /* ---- Mobile ---- */
+  @media (max-width: 760px){
+    .wrap{padding:14px 12px}
+    header{flex-wrap:wrap;gap:8px 12px;padding:12px 14px}
+    header h1{font-size:.98rem;flex-basis:100%}
+    .health{gap:6px 12px;padding:9px 11px;font-size:.72rem}
+    .health .btn{margin-left:0 !important}
+    .tabs{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .tab{padding:9px 15px;font-size:.85rem;white-space:nowrap}
+    .seclabel{margin:16px 0 7px}
+    .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+    .card{padding:11px 12px}
+    .card .value{font-size:1.12rem;overflow-wrap:anywhere}
+    .chartbox{height:230px}
+    /* tableaux : largeur naturelle + défilement horizontal, plus de troncature */
+    .panel{padding:12px;overflow-x:auto}
+    table{font-size:.78rem}
+    th,td{padding:6px 8px;white-space:nowrap}
+    #cos-table table,#cos-weekly table,#cos-monthly table{table-layout:auto;width:auto;min-width:100%}
+    #cos-table th,#cos-table td,#cos-weekly th,#cos-weekly td,#cos-monthly th,#cos-monthly td{overflow:visible;text-overflow:clip}
+    .panel h2.bigttl{font-size:1.05rem}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dashboard Marketing - Le Petit Lunetier</h1>
+  <label class="who">Période
+    <select id="days">
+      <option value="7">7 jours</option>
+      <option value="14">14 jours</option>
+      <option value="30" selected>30 jours</option>
+      <option value="90">90 jours</option>
+    </select>
+  </label>
+  <span class="who">{{ user }}</span>
+  <a href="/logout">Déconnexion</a>
+</header>
+
+<div class="wrap">
+  <div class="health" id="health"></div>
+  <div class="tabnav">
+    <div class="tabs">
+      <button class="tab active" data-tab="cos">Vue d'ensemble</button>
+      <button class="tab" data-tab="meta">Meta Ads</button>
+      <button class="tab" data-tab="google">Google Ads</button>
+    </div>
+  </div>
+
+  <div class="view active" id="view-cos">
+    <div class="seclabel">Indicateurs du mois en cours · MTD (jusqu'à hier)</div>
+    <div class="kpis" id="cos-kpis"></div>
+    <div class="panel" id="cos-targets"><h2>Objectif du mois &amp; projection</h2><div class="loading">Chargement…</div></div>
+    <div class="seclabel">Évolution quotidienne</div>
+    <div class="panel"><h2>Dépense pub vs CA Shopify &amp; COS</h2><div class="chartbox"><canvas id="cos-chart"></canvas></div></div>
+    <div class="seclabel">Détails comparés</div>
+    <div class="panel"><h2 class="bigttl">MONTHLY<span>depuis janvier · vs N-1</span></h2><div id="cos-monthly" class="loading">Chargement…</div></div>
+    <div class="panel"><h2 class="bigttl">WEEKLY<span>8 dernières · vs semaine précédente</span></h2><div id="cos-weekly" class="loading">Chargement…</div></div>
+    <div class="panel"><h2 class="bigttl">DAILY<span>période sélectionnée (en haut à droite)</span></h2><div id="cos-table" class="loading">Chargement…</div></div>
+  </div>
+
+  <div class="view" id="view-meta">
+    <div class="kpis" id="meta-kpis"></div>
+    <div class="panel"><h2>Coût, Conversions, CTR &amp; ROAS / jour</h2><div class="chartbox"><canvas id="meta-chart"></canvas></div></div>
+    <div class="panel"><h2>Par campagne</h2><div id="meta-table" class="loading">Chargement…</div></div>
+    <div class="panel">
+      <h2 style="display:flex;align-items:center;gap:10px">Alertes · live API Meta · plancher ROI {{ roi_floor }}
+        <button class="btn" id="btn-alerts" style="margin-left:auto;font-size:.7rem;padding:5px 11px">Recalculer</button></h2>
+      <div id="meta-alerts" class="loading">Chargement des alertes…</div>
+    </div>
+  </div>
+
+  <div class="view" id="view-google">
+    <div id="google-empty"></div>
+    <div class="seclabel">Indicateurs du mois · MTD (jusqu'à hier)</div>
+    <div class="kpis" id="google-kpis"></div>
+    <div class="panel"><h2>Coût &amp; Valeur de conversion / jour</h2><div class="chartbox"><canvas id="google-chart"></canvas></div></div>
+    <div class="panel"><h2>Par type de campagne</h2><div id="google-bytype" class="loading">Chargement…</div></div>
+    <div class="panel"><h2>Par campagne</h2><div id="google-table" class="loading">Chargement…</div></div>
+    <div class="panel"><h2>Asset groups — PMax (groupes de composants)</h2><div id="google-assets" class="loading">Chargement…</div></div>
+  </div>
+</div>
+
+<script>
+const ROI_FLOOR = {{ roi_floor }};
+const eur=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const eur2=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
+const num=new Intl.NumberFormat("fr-FR");
+const pct=v=>v==null?"—":(v*100).toFixed(1).replace(".",",")+" %";
+const frDay=iso=>new Date(iso+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+const charts={};
+let DAYS=30;
+const PAL=["#FCE4EA","#FCEFD9","#F7F8DE","#E2F7DF","#DBF6F2","#DEF0FC"];
+// dégradé : pour une colonne, position de v entre min et max -> couleur (hi=false inverse)
+function gradBg(v,mn,mx,hi){
+  if(v==null||!isFinite(v)||mn==null||mx==null)return"";
+  let t=mx>mn?(v-mn)/(mx-mn):0.5; if(!hi)t=1-t;
+  let k=Math.floor(t*6); k=k>5?5:(k<0?0:k); return PAL[k];
+}
+function cmpTxt(v,kind,goodUp){
+  if(v==null)return`<div class="cmp cmp-flat">—</div>`;
+  const s=v>0?"+":"";
+  const txt=s+v.toFixed(1).replace(".",",")+(kind==="pts"?" pts":" %");
+  let cls="cmp-flat";
+  if(goodUp!==null&&Math.abs(v)>=0.05){const good=goodUp?v>0:v<0;cls=good?"cmp-up":"cmp-down";}
+  return`<div class="cmp ${cls}">${txt}</div>`;
+}
+
+function chip(label,t,invert){
+  if(t==null) return `<span class="chip flat">${label}: n/a</span>`;
+  let cls="flat";
+  if(invert!==null && Math.abs(t)>=0.05){const good=invert?t<0:t>0;cls=good?"good":"bad";}
+  const arr=t>0?"▲":(t<0?"▼":"");
+  return `<span class="chip ${cls}">${label} ${arr}${Math.abs(t)}%</span>`;
+}
+function card(label,value,chips,warn){
+  return `<div class="card"><div class="label">${label}</div>
+    <div class="value ${warn?"warn":""}">${value}</div>
+    ${chips?`<div class="chips">${chips}</div>`:""}</div>`;
+}
+function roas3Card(r3){
+  if(!r3||r3.now==null) return card("ROAS · 3 derniers jours","—");
+  const pctTxt=r3.pct==null?"":` (${r3.pct>0?"+":""}${r3.pct.toFixed(0)} %)`;
+  const cls=r3.pct==null?"flat":(r3.pct>0?"good":"bad");
+  const sub=r3.prev!=null?`<span class="chip ${cls}">vs 3 j préc. ${r3.prev.toFixed(2)}${pctTxt}</span>`:"";
+  return `<div class="card"><div class="label">ROAS · 3 derniers jours</div>
+    <div class="value ${r3.now<ROI_FLOOR?"warn":""}">${r3.now.toFixed(2)}</div>
+    ${sub?`<div class="chips">${sub}</div>`:""}</div>`;
+}
+// nuancier graphiques, dérivé de la palette pastel (versions un peu plus saturées)
+const C={meta:"#6FA8D6",google:"#7BBE86",ca:"#E8B070",cos:"#D98AA0",roas:"#6BC3BC",val:"#7BBE86",cpa:"#E8B070",conv:"#A77BD0"};
+const trendChips=(o,inv)=>o?chip("3j",o.d3,inv)+chip("7j",o.d7,inv):"";
+async function getJSON(u){const r=await fetch(u);if(r.status===401){location.href="/login";return null;}return r.json();}
+
+async function loadHealth(){
+  const el=document.getElementById("health"); if(!el)return;
+  const d=await getJSON("/api/health"); if(!d)return;
+  const lib={ok:"à jour",warn:"en retard",stale:"bloqué",empty:"vide"};
+  const items=d.sources.map(s=>{
+    let txt=s.label;
+    if(s.last){
+      let det=s.days_behind>0?`${lib[s.status]} (${s.days_behind} j)`:"à jour";
+      if(s.gaps>0) det+=`, ${s.gaps} trou(s)`;
+      txt+=` — ${det}`;
+    } else txt+=" — vide";
+    return `<span class="hsrc"><span class="hdot ${s.status}"></span>${txt}</span>`;
+  }).join("");
+  const notes=d.sources.filter(s=>s.note).map(s=>`<div class="msg">⚠️ ${s.label} : ${s.note}</div>`).join("");
+  const msg=d.overall!=="ok"
+    ? (notes || `<div class="msg">⚠️ Données partiellement incomplètes — une source n'est pas à jour (jeton expiré, scraper Mac à l'arrêt, ou trou d'historique). Lis les chiffres récents avec prudence.</div>`) : "";
+  el.className="health"+(d.overall==="ok"?"":" "+d.overall);
+  el.innerHTML=`<span class="ht">État des données</span>${items}`+
+    `<button class="btn" id="btn-rs" style="margin-left:auto">Rafraîchir les sessions</button>${msg}`;
+  document.getElementById("btn-rs").addEventListener("click",refreshSessions);
+}
+async function refreshSessions(){
+  const b=document.getElementById("btn-rs"); if(!b)return;
+  b.disabled=true; b.textContent="Lancement…";
+  try{
+    const r=await fetch("/api/refresh-sessions",{method:"POST"}); const d=await r.json();
+    if(d.ok){
+      b.textContent="Lancé ✓ — mise à jour…";
+      // le job lit le Sheet puis écrit BigQuery (~30-90 s) : on recharge la santé plusieurs fois
+      [30000,60000,90000,150000].forEach(t=>setTimeout(loadHealth,t));
+      setTimeout(()=>{b.disabled=false;b.textContent="Rafraîchir les sessions";},150000);
+    } else {
+      b.textContent="Échec"; b.disabled=false;
+      alert("Échec du déclenchement du job sessions :\n"+(d.detail||d.error||"erreur inconnue"));
+    }
+  }catch(e){ b.textContent="Échec"; b.disabled=false; alert("Erreur réseau : "+e); }
+}
+
+async function loadTargets(){
+  const el=document.getElementById("cos-targets");
+  const d=await getJSON("/api/targets"); if(!d)return;
+  if(!d.ok){el.innerHTML=`<h2>Objectif du mois &amp; projection</h2><div class="empty">Objectifs indisponibles : ${d.error||"erreur"}.</div>`;return;}
+  const moisFR=new Date(d.month+"-01T12:00:00Z").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  function bloc(titre,b,lowerBetter){
+    if(b.target==null||b.projected==null) return `<div class="card"><div class="label">${titre}</div><div class="empty">Données insuffisantes ce mois-ci.</div></div>`;
+    // CA : dépasser l'objectif = bien. Dépense : rester sous le budget = bien.
+    const good = lowerBetter ? b.projected<=b.target : b.projected>=b.target;
+    const projCls = good?"good":"bad";
+    return `<div class="card">
+      <div class="label">${titre} — ${moisFR}</div>
+      <table style="margin-top:4px">
+        <tr><td>Objectif</td><td><b>${eur.format(b.target)}</b></td></tr>
+        <tr><td>Réalisé (à hier)</td><td>${eur.format(b.mtd)}</td></tr>
+        <tr><td>Projeté fin de mois</td><td class="${projCls}">${eur.format(b.projected)}</td></tr>
+        <tr><td>Reco / jour (${d.days.left} j restants)</td><td><b>${b.reco_daily!=null?eur.format(Math.max(0,b.reco_daily)):"—"}</b></td></tr>
+      </table></div>`;
+  }
+  function blocCos(c){
+    if(!c||c.target==null) return "";
+    const ok=c.mtd!=null&&c.mtd<=c.target;
+    return `<div class="card"><div class="label">COS — perspective</div>
+      <table style="margin-top:4px">
+        <tr><td>COS objectif mois</td><td><b>${pct(c.target)}</b></td></tr>
+        <tr><td>COS réalisé (MTD)</td><td><span class="chip ${ok?'good':'bad'}">${pct(c.mtd)}</span></td></tr>
+        <tr><td>COS à tenir (jours restants)</td><td><b>${c.needed_remaining!=null?pct(c.needed_remaining):"—"}</b></td></tr>
+      </table></div>`;
+  }
+  el.innerHTML=`<h2>Objectif du mois &amp; projection</h2>
+    <div class="banner" style="margin-bottom:12px">Projection au rythme actuel (réalisé ÷ jours écoulés × jours du mois). La « reco/jour » est ce qu'il faut faire chaque jour restant pour atteindre l'objectif. Le « COS à tenir » est le COS à réaliser sur le CA restant pour finir le mois pile sur tes deux objectifs.</div>
+    <div class="kpis" style="margin:0">${bloc("Chiffre d'affaires",d.ca,false)}${bloc("Dépense perf (Meta+Google)",d.spend,true)}${blocCos(d.cos)}</div>`;
+}
+
+const weekLabel=r=>"sem. "+new Date(r.label+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+weekLabel.title="Semaine (lun.)";
+const monthLabel=r=>new Date(r.label+"T12:00:00Z").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+monthLabel.title="Mois";
+function renderPeriodTable(containerId,rows,labelFn){
+  const PCOLS=[
+    {label:"Sessions",key:"sessions",cmp:"sessions_cmp",fmt:num.format,hi:true, kind:"pct",good:true},
+    {label:"CVR",     key:"cvr",     cmp:"cvr_cmp",     fmt:pct,       hi:true, kind:"pts",good:true},
+    {label:"Cmd",     key:"orders",  cmp:"orders_cmp",  fmt:num.format,hi:true, kind:"pct",good:true},
+    {label:"CA",      key:"ca",      cmp:"ca_cmp",      fmt:eur.format,hi:true, kind:"pct",good:true},
+    {label:"Dépense", key:"spend",   cmp:"spend_cmp",   fmt:eur.format,hi:false,kind:"pct",good:null},
+    {label:"COS",     key:"cos",     cmp:"cos_cmp",     fmt:pct,       hi:false,kind:"pts",good:false},
+  ];
+  // Dégradé calculé sur les périodes COMPLÈTES uniquement (la période en cours, partielle,
+  // ne doit pas biaiser l'échelle et n'est pas teintée).
+  const full=rows.filter(r=>!r.current);
+  const ext=PCOLS.map(c=>{const vs=full.map(r=>r[c.key]).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
+  let h=`<table><thead><tr><th>${labelFn.title}</th>${PCOLS.map(c=>`<th>${c.label}</th>`).join("")}</tr></thead><tbody>`;
+  rows.forEach(r=>{
+    h+=`<tr><td>${labelFn(r)}${r.current?' <span class="pill">en cours</span>':''}</td>`+PCOLS.map((c,i)=>{
+      const v=r[c.key];
+      const bg=r.current?"":gradBg(v,ext[i][0],ext[i][1],c.hi);
+      return `<td style="background:${bg}">${v==null?"—":c.fmt(v)}${cmpTxt(r[c.cmp],c.kind,c.good)}</td>`;
+    }).join("")+`</tr>`;
+  });
+  document.getElementById(containerId).innerHTML=h+"</tbody></table>";
+}
+async function loadPeriods(){
+  const d=await getJSON("/api/periods"); if(!d)return;
+  renderPeriodTable("cos-weekly",d.weeks,weekLabel);
+  renderPeriodTable("cos-monthly",d.months.slice().reverse(),monthLabel);
+}
+
+async function loadCos(){
+  loadTargets(); loadPeriods();
+  const d=await getJSON(`/api/overview?days=${DAYS}`); if(!d)return;
+  const m=d.mtd, tr=d.trends;
+  const tch=(o,inv)=>chip("3j",o.d3,inv)+chip("7j",o.d7,inv);
+  document.getElementById("cos-kpis").innerHTML=
+    (m.sessions?card("Sessions (MTD)",num.format(m.sessions),tch(tr.sessions,false)):"")+
+    (m.cvr!=null?card("CVR (MTD)",pct(m.cvr),tch(tr.cvr,false)):"")+
+    card("Commandes (MTD)",num.format(m.orders||0),tch(tr.orders,false))+
+    card("CA Shopify (MTD)",eur.format(m.ca||0),tch(tr.ca,false))+
+    card("Dépense pub (MTD)",eur.format(m.spend||0),tch(tr.spend,null))+
+    card("COS blended (MTD)",pct(m.cos),tch(tr.cos,true),m.cos!=null&&m.cos>0.3);
+  const rows=d.rows, labels=rows.map(r=>frDay(r.date));
+  mkChart("cos-chart",{data:{labels,datasets:[
+    {type:"bar",label:"Dépense Meta",data:rows.map(r=>r.meta_spend),backgroundColor:C.meta,stack:"a"},
+    {type:"bar",label:"Dépense Google",data:rows.map(r=>r.google_spend),backgroundColor:C.google,stack:"a"},
+    {type:"line",label:"CA Shopify",data:rows.map(r=>r.ca_shopify),borderColor:C.ca,backgroundColor:C.ca,tension:.3,yAxisID:"y"},
+    {type:"line",label:"COS %",data:rows.map(r=>r.cos_blended==null?null:r.cos_blended*100),borderColor:C.cos,backgroundColor:C.cos,borderDash:[5,4],tension:.3,yAxisID:"y1"}
+  ]},options:{maintainAspectRatio:false,scales:{
+    y:{position:"left",stacked:true,beginAtZero:true,ticks:{callback:v=>num.format(v)+" €"}},x:{stacked:true},
+    y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},ticks:{callback:v=>v+" %"}}},
+    plugins:{legend:{labels:{boxWidth:12}}}}});
+  const dt=d.daily_targets;
+  const cvrOf=r=>(r.sessions?r.orders/r.sessions:null);
+  // hi:true = valeur haute = bonne (bleu) ; hi:false = valeur basse = bonne (bleu)
+  const COLS=[
+    {label:"Sessions",get:r=>r.sessions,        fmt:num.format,            hi:true},
+    {label:"CVR",     get:cvrOf,                fmt:pct,                   hi:true},
+    {label:"Cmd",     get:r=>r.orders,          fmt:num.format,            hi:true},
+    {label:"CA",      get:r=>r.ca_shopify,      fmt:eur.format,            hi:true,  dot:"ca"},
+    {label:"Meta",    get:r=>r.meta_spend,      fmt:eur.format,            hi:false},
+    {label:"Google",  get:r=>r.google_spend,    fmt:eur.format,            hi:false},
+    {label:"Dépense", get:r=>r.ad_spend_total,  fmt:eur.format,            hi:false, dot:"spend"},
+    {label:"COS",     get:r=>r.cos_blended,     fmt:pct,                   hi:false, dot:"cos"},
+  ];
+  // étendue min/max par colonne sur la période affichée (≈30 j) pour le dégradé
+  const ext=COLS.map(c=>{const vs=rows.map(c.get).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
+  const bg=(i,v)=>gradBg(v,ext[i][0],ext[i][1],COLS[i].hi);
+  const dot=(kind,r)=>{
+    if(!dt)return"";
+    let good;
+    if(kind==="ca")    good=r.ca_shopify>=dt.ca;
+    else if(kind==="spend") good=r.ad_spend_total<=dt.spend;
+    else if(kind==="cos")   good=r.cos_blended!=null&&r.cos_blended<=dt.cos;
+    else return"";
+    return `<span class="dot ${good?"dot-g":"dot-r"}"></span>`;
+  };
+  const legend=`<div class="legend">Dégradé par colonne sur la période <span class="grad"></span> du moins bon (rose) au meilleur (bleu).
+    &nbsp;Pastille = vs objectif quotidien : <span class="dot dot-g"></span> mieux <span class="dot dot-r"></span> moins bien.</div>`;
+  let h=legend+`<table><thead><tr><th>Jour</th>${COLS.map(c=>`<th>${c.label}</th>`).join("")}</tr></thead><tbody>`;
+  rows.slice().reverse().forEach(r=>{
+    h+=`<tr><td>${frDay(r.date)}</td>`+COLS.map((c,i)=>{
+      const v=c.get(r);
+      const d2=c.dot?dot(c.dot,r):"";
+      return `<td style="background:${bg(i,v)}">${v==null?"—":c.fmt(v)}${d2}</td>`;
+    }).join("")+`</tr>`;
+  });
+  document.getElementById("cos-table").innerHTML=h+"</tbody></table>";
+}
+
+async function loadMeta(){
+  const d=await getJSON(`/api/meta?days=${Math.min(DAYS,90)}`); if(!d)return;
+  const dd=d.daily, tr=d.trends;
+  const tot=dd.reduce((a,r)=>({s:a.s+(r.spend||0),v:a.v+(r.value||0),p:a.p+(r.purchases||0),
+    i:a.i+(r.impressions||0),c:a.c+(r.clicks||0)}),{s:0,v:0,p:0,i:0,c:0});
+  const roas=tot.s?tot.v/tot.s:0, cpa=tot.p?tot.s/tot.p:0, ctr=tot.i?tot.c/tot.i:0;
+  document.getElementById("meta-kpis").innerHTML=
+    card("Dépense",eur.format(tot.s),trendChips(tr.spend,null))+
+    card("Impressions",num.format(tot.i),trendChips(tr.impressions,null))+
+    card("CTR",pct(ctr),trendChips(tr.ctr,false))+
+    card("Achats",num.format(tot.p),trendChips(tr.purchases,false))+
+    card("Valeur",eur.format(tot.v),trendChips(tr.value,false))+
+    card("Coût/achat",eur2.format(cpa),trendChips(tr.cpa,true))+
+    card("ROAS",roas.toFixed(2),trendChips(tr.roas,false),roas<ROI_FLOOR)+
+    roas3Card(d.roas3);
+  const labels=dd.map(r=>frDay(r.date));
+  mkChart("meta-chart",{data:{labels,datasets:[
+    {type:"bar",label:"Coût (€)",data:dd.map(r=>r.spend),backgroundColor:C.meta,yAxisID:"yCost",order:3},
+    {type:"line",label:"Conversions",data:dd.map(r=>r.purchases),borderColor:C.conv,backgroundColor:C.conv,tension:.3,yAxisID:"yConv",order:1},
+    {type:"line",label:"ROAS",data:dd.map(r=>r.roas),borderColor:C.roas,backgroundColor:C.roas,tension:.3,yAxisID:"yRatio",order:1},
+    {type:"line",label:"CTR %",data:dd.map(r=>r.ctr==null?null:r.ctr*100),borderColor:C.cpa,backgroundColor:C.cpa,borderDash:[4,3],tension:.3,yAxisID:"yRatio",order:1},
+  ]},options:{maintainAspectRatio:false,scales:{
+    yCost:{position:"left",beginAtZero:true,title:{display:true,text:"Coût €"},ticks:{callback:v=>num.format(v)}},
+    yConv:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"Conv."}},
+    yRatio:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"ROAS / CTR %"}}},
+    plugins:{legend:{labels:{boxWidth:12}}}}});
+  let h=`<table><thead><tr><th>Campagne</th><th>Dépense</th><th>Achats</th><th>Coût/achat</th><th>Valeur</th><th>ROAS</th></tr></thead><tbody>`;
+  d.campaigns.forEach(c=>{const w=c.roas<ROI_FLOOR;h+=`<tr><td>${c.campaign_name}</td><td>${eur.format(c.spend)}</td>
+    <td>${num.format(c.purchases)}</td><td>${c.cpa?eur2.format(c.cpa):"—"}</td><td>${eur.format(c.value)}</td>
+    <td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
+  document.getElementById("meta-table").innerHTML=h+"</tbody></table>";
+  loadMetaAlerts();
+}
+
+async function loadMetaAlerts(force){
+  const el=document.getElementById("meta-alerts"); el.className="";
+  if(force) el.innerHTML='<div class="loading">Recalcul des alertes…</div>';
+  const d=await getJSON("/api/meta/alerts"+(force?"?force=1":"")); if(!d)return;
+  if(!d.ok){el.innerHTML=`<div class="empty">Alertes indisponibles : ${d.error||"erreur"}.</div>`;return;}
+  const list=(items,cols)=>items.length?`<table><tbody>${items.map(cols).join("")}</tbody></table>`:`<div class="empty">Rien à signaler ✓</div>`;
+  el.innerHTML=`<div class="alerts">
+    <div class="alert red"><h3>Ads sous ROI ${d.roi_floor} (qui dépensent)</h3>
+      ${list(d.low_roi_ads,a=>`<tr><td>${a.ad||"—"}</td><td class="warn">${a.roas}</td><td>${eur.format(a.spend)}</td></tr>`)}</div>
+    <div class="alert amber"><h3>Ads actives mais &lt;30€ (7j)</h3>
+      ${list(d.under_spend_ads,a=>`<tr><td>${a.ad||"—"}</td><td>${eur.format(a.spend)}</td></tr>`)}</div>
+    <div class="alert red"><h3>Adsets en chute (ROAS 3j vs 3j préc.)</h3>
+      ${list(d.declining_adsets,a=>`<tr><td>${a.adset||"—"}</td><td class="warn">${a.drop_pct}%</td><td>${a.roas_3d}</td></tr>`)}</div>
+  </div>`;
+}
+
+async function loadGoogle(){
+  const d=await getJSON(`/api/google?days=${Math.min(DAYS,90)}`); if(!d)return;
+  document.getElementById("google-empty").innerHTML = d.available ? "" :
+    `<div class="banner">Aucune dépense Google sur la période. Si c'est inattendu, vérifie le bandeau État des données.</div>`;
+  const m=d.mtd, tr=d.trends;
+  const tch=o=>chip("3j",o,false);
+  document.getElementById("google-kpis").innerHTML=
+    card("Coût (MTD)",eur.format(m.cost||0))+
+    card("ROAS (MTD)",m.roas?m.roas.toFixed(2):"—",chip("3j",tr.roas_3d,false)+chip("7j",tr.roas_7d,false),m.roas!=null&&m.roas<ROI_FLOOR)+
+    roas3Card(d.roas3)+
+    card("Coût/conv. (MTD)",m.cpa?eur2.format(m.cpa):"—")+
+    card("Conversions (MTD)",num.format(Math.round(m.conv||0)))+
+    card("Valeur conv. (MTD)",eur.format(m.value||0));
+  const labels=d.daily.map(r=>frDay(r.date));
+  mkChart("google-chart",{data:{labels,datasets:[
+    {type:"bar",label:"Coût",data:d.daily.map(r=>r.cost),backgroundColor:C.google},
+    {type:"line",label:"Valeur conv.",data:d.daily.map(r=>r.value),borderColor:C.ca,backgroundColor:C.ca,tension:.3},
+  ]},options:{maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{callback:v=>num.format(v)+" €"}}},plugins:{legend:{labels:{boxWidth:12}}}}});
+  // par type
+  let ht=`<table><thead><tr><th>Type</th><th>Coût</th><th>Conv.</th><th>Valeur</th><th>Coût/conv.</th><th>ROAS</th></tr></thead><tbody>`;
+  d.by_type.forEach(c=>{const w=c.roas<ROI_FLOOR;ht+=`<tr><td><span class="pill">${c.campaign_type||"—"}</span></td>
+    <td>${eur.format(c.cost)}</td><td>${num.format(Math.round(c.conv))}</td><td>${eur.format(c.value)}</td>
+    <td>${c.cpa?eur2.format(c.cpa):"—"}</td><td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
+  document.getElementById("google-bytype").innerHTML=ht+"</tbody></table>";
+  // par campagne
+  let h=`<table><thead><tr><th>Campagne</th><th>Type</th><th>Coût</th><th>Conv.</th><th>Valeur</th><th>Coût/conv.</th><th>ROAS</th></tr></thead><tbody>`;
+  d.campaigns.forEach(c=>{const w=c.roas<ROI_FLOOR;h+=`<tr><td>${c.campaign_name}</td><td><span class="pill">${c.campaign_type||""}</span></td>
+    <td>${eur.format(c.cost)}</td><td>${num.format(Math.round(c.conv))}</td><td>${eur.format(c.value)}</td>
+    <td>${c.cpa?eur2.format(c.cpa):"—"}</td><td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
+  document.getElementById("google-table").innerHTML=h+"</tbody></table>";
+  loadAssetGroups();
+}
+async function loadAssetGroups(){
+  const el=document.getElementById("google-assets");
+  const d=await getJSON(`/api/google/asset-groups?days=${Math.min(DAYS,90)}`); if(!d)return;
+  if(!d.ok){el.innerHTML=`<div class="empty">Asset groups indisponibles : ${d.error||"table absente"}. (Lance le backfill asset groups.)</div>`;return;}
+  if(!d.rows.length){el.innerHTML=`<div class="empty">Aucun asset group sur la période (campagnes PMax sans dépense ?).</div>`;return;}
+  let h=`<table><thead><tr><th>Campagne PMax</th><th>Asset group</th><th>Coût</th><th>Conv.</th><th>Valeur</th><th>Coût/conv.</th><th>ROAS</th></tr></thead><tbody>`;
+  d.rows.forEach(r=>{const w=r.roas<ROI_FLOOR;h+=`<tr><td>${r.campaign_name}</td><td>${r.asset_group_name||"—"}</td>
+    <td>${eur.format(r.cost)}</td><td>${num.format(Math.round(r.conv))}</td><td>${eur.format(r.value)}</td>
+    <td>${r.cpa?eur2.format(r.cpa):"—"}</td><td class="${w?"warn":""}">${r.roas.toFixed(2)}</td></tr>`;});
+  el.innerHTML=h+"</tbody></table>";
+}
+
+function mkChart(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);}
+const loaded={};
+function activate(tab){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+tab));
+  if(tab==="cos")loadCos(); if(tab==="meta")loadMeta(); if(tab==="google")loadGoogle();
+}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>activate(t.dataset.tab)));
+document.getElementById("days").addEventListener("change",e=>{DAYS=parseInt(e.target.value);
+  const active=document.querySelector(".tab.active").dataset.tab;activate(active);});
+const _ba=document.getElementById("btn-alerts");
+if(_ba) _ba.addEventListener("click",()=>loadMetaAlerts(true));
+loadHealth();
+loadCos();
+</script>
+</body>
+</html>

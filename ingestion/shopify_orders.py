@@ -50,6 +50,10 @@ LOCAL_TZ      = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Paris"))
 GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/{API_VERSION}/graphql.json"
 ALLOWED_SOURCES = {"web", "just", "5448991"}
 
+_SESSION = requests.Session()   # connexion HTTP persistante (keep-alive)
+_THROTTLE: dict = {}            # dernier throttleStatus GraphQL renvoyé par Shopify
+_LAST_COST = 50                 # coût de la dernière requête (pour la cadence adaptative)
+
 ORDERS_QUERY = """
 query ($query: String!, $cursor: String) {
   orders(first: 50, query: $query, after: $cursor, sortKey: CREATED_AT) {
@@ -61,8 +65,8 @@ query ($query: String!, $cursor: String) {
       displayFinancialStatus
       tags
       sourceName
-      customer { id orders(first: 1, sortKey: CREATED_AT) { nodes { id } } }
-      refunds { transactions(first: 10) { nodes { kind status amountSet { shopMoney { amount } } } } }
+      customer { numberOfOrders }
+      refunds { transactions(first: 5) { nodes { kind status amountSet { shopMoney { amount } } } } }
     }
   }
 }
@@ -81,8 +85,8 @@ def _graphql(query_string: str, cursor: str | None) -> dict:
     last_err = None
     for attempt in range(8):
         try:
-            # timeout=(connexion, lecture) ; le socket par défaut (120s) couvre le DNS
-            r = requests.post(GRAPHQL_URL, json=payload, headers=headers, timeout=(15, 90))
+            # session persistante ; timeout=(connexion, lecture) ; socket par défaut (120s) couvre le DNS
+            r = _SESSION.post(GRAPHQL_URL, json=payload, headers=headers, timeout=(15, 90))
         except requests.exceptions.RequestException as e:
             last_err = e
             print(f"  [shopify] incident réseau (tentative {attempt + 1}/8) : {e}", flush=True)
@@ -101,6 +105,10 @@ def _graphql(query_string: str, cursor: str | None) -> dict:
                 time.sleep(2 * (attempt + 1))
                 continue
             raise RuntimeError(f"Shopify GraphQL errors: {data['errors']}")
+        cost = data.get("extensions", {}).get("cost", {})
+        global _THROTTLE, _LAST_COST
+        _THROTTLE = cost.get("throttleStatus", _THROTTLE)
+        _LAST_COST = cost.get("requestedQueryCost", _LAST_COST)
         return data["data"]["orders"]
     raise RuntimeError(f"Shopify GraphQL: échec après 8 tentatives. Dernière erreur réseau : {last_err}")
 
@@ -129,12 +137,16 @@ def _analyze_order(order: dict) -> dict | None:
     if excluded:
         return None
 
-    # NEW par défaut ; EXISTING si la 1re commande du client n'est pas celle-ci
-    customer_type = "new"
+    # Segmentation client allégée via le scalaire numberOfOrders (au lieu de la sous-requête
+    # customer.orders, très coûteuse en GraphQL) : « new » = client à 1 commande au total,
+    # « existing » = client récurrent. NB : définition « one-time vs repeat » (état actuel du
+    # client), légèrement différente de l'ancienne « 1re commande exacte » par commande.
     cust = order.get("customer") or {}
-    first_nodes = ((cust.get("orders") or {}).get("nodes") or [])
-    if first_nodes and first_nodes[0].get("id") and first_nodes[0]["id"] != order["id"]:
-        customer_type = "existing"
+    n = cust.get("numberOfOrders")
+    try:
+        customer_type = "existing" if (n is not None and int(n) > 1) else "new"
+    except (TypeError, ValueError):
+        customer_type = "new"
 
     if "mix & match" in tags:
         cat = "mm"
@@ -171,7 +183,13 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
             d[res["bucket"]] += 1
         has_next = orders["pageInfo"]["hasNextPage"]
         cursor   = orders["pageInfo"]["endCursor"]
-        time.sleep(0.4)  # respect des limites API (comme Utilities.sleep(400))
+        # Cadence adaptative : on n'attend QUE si le budget GraphQL Shopify est bas.
+        avail, restore = _THROTTLE.get("currentlyAvailable"), _THROTTLE.get("restoreRate")
+        if avail is not None and restore:
+            if avail < _LAST_COST:
+                time.sleep(min(2.0, (_LAST_COST - avail) / restore))
+        else:
+            time.sleep(0.2)
     return stats
 
 

@@ -72,6 +72,24 @@ PARTITION BY date
 CLUSTER BY campaign_id
 OPTIONS (description = "Google Ads quotidien (GAQL). Vide tant que l'accès Basic n'est pas accordé.");
 
+-- 4b) Asset groups (groupes de composants) des campagnes Performance Max.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.google_asset_group_daily` (
+  date              DATE      NOT NULL,
+  campaign_id       STRING,
+  campaign_name     STRING,
+  asset_group_id    STRING,
+  asset_group_name  STRING,
+  cost              FLOAT64,
+  conversions       FLOAT64,
+  conversion_value  FLOAT64,
+  impressions       INT64,
+  clicks            INT64,
+  updated_at        TIMESTAMP NOT NULL
+)
+PARTITION BY date
+CLUSTER BY asset_group_id
+OPTIONS (description = "Performance quotidienne par asset group (PMax), via GAQL.");
+
 -- ============================================================================
 -- VUE D'ENSEMBLE — un point par jour, prête pour le front / Looker Studio.
 -- COS blended = (dépense Meta + Google) / CA net Shopify.

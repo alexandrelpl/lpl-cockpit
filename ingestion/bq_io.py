@@ -55,6 +55,15 @@ def load_replace_window(client: bigquery.Client, table: str, rows: list[dict],
     return len(rows)
 
 
+def load_replace_all(client: bigquery.Client, table: str, rows: list[dict]) -> int:
+    """Remplace TOUT le contenu de la table par `rows` (load job WRITE_TRUNCATE)."""
+    if not rows:
+        return 0
+    schema = client.get_table(table).schema
+    _load(client, table, rows, bigquery.WriteDisposition.WRITE_TRUNCATE, schema)
+    return len(rows)
+
+
 def _flush(client: bigquery.Client, table: str, partition_by: str,
            cluster_by: str | None = None) -> None:
     cl = f" CLUSTER BY {cluster_by}" if cluster_by else ""
