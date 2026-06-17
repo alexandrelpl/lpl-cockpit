@@ -90,6 +90,80 @@ PARTITION BY date
 CLUSTER BY asset_group_id
 OPTIONS (description = "Performance quotidienne par asset group (PMax), via GAQL.");
 
+-- 5) CRO — funnel GA4 (par jour).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.ga4_funnel_daily` (
+  date DATE NOT NULL, sessions INT64, add_to_carts INT64, checkouts INT64,
+  purchases INT64, item_views INT64, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date OPTIONS (description = "Funnel GA4 quotidien (CRO).");
+
+-- 5b) CRO — produits GA4 (par jour x produit).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.ga4_items_daily` (
+  date DATE NOT NULL, item_name STRING, views INT64, add_to_carts INT64,
+  purchases INT64, revenue FLOAT64, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY item_name OPTIONS (description = "GA4 item-level quotidien (CRO).");
+
+-- 5c) CRO — canaux d'acquisition GA4 (par jour x canal).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.ga4_channels_daily` (
+  date DATE NOT NULL, channel STRING, sessions INT64, purchases INT64,
+  revenue FLOAT64, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date OPTIONS (description = "GA4 par canal d'acquisition (CRO).");
+
+-- 5d) CRO — snapshot du stock Shopify (remplacé à chaque run, pas de date).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_inventory` (
+  product_title STRING, status STRING, total_inventory INT64,
+  product_type STRING, published BOOL, updated_at TIMESTAMP NOT NULL
+) OPTIONS (description = "Stock courant Shopify (CRO / ruptures). published = publié sur Boutique en ligne.");
+
+-- 5e) Meta — snapshot quotidien du budget paramétré par adset (suivi over/under-spend).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.meta_adset_budget_daily` (
+  date DATE NOT NULL, adset_id STRING, adset_name STRING, campaign_id STRING,
+  daily_budget FLOAT64, lifetime_budget FLOAT64, status STRING, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY adset_id OPTIONS (description = "Budget adset Meta (ABO), snapshot/jour.");
+
+-- 5f) Meta — snapshot quotidien du budget de campagne (CBO / Advantage Campaign Budget).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.meta_campaign_budget_daily` (
+  date DATE NOT NULL, campaign_id STRING, campaign_name STRING,
+  daily_budget FLOAT64, lifetime_budget FLOAT64, status STRING, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY campaign_id OPTIONS (description = "Budget campagne Meta (CBO), snapshot/jour.");
+
+-- 5g) Clients : (date locale, customer_id) par commande incluse. La 1re commande
+--     de chaque client est déduite par MIN(date) -> new/returning figé à l'achat.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_customer_orders` (
+  date DATE NOT NULL, customer_id STRING, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY customer_id
+OPTIONS (description = "Commandes-client (date, customer_id) pour le calcul new vs returning par cohorte.");
+
+-- Vue : new vs returning par grain (jour / semaine ISO / mois), customer-level, window-correct.
+--   new      = clients dont la 1re commande tombe dans la période
+--   returning = clients ayant commandé dans la période mais acquis AVANT la période
+CREATE OR REPLACE VIEW `lpl_cockpit.shopify_customers_period` AS
+WITH oc AS (
+  SELECT DISTINCT date, customer_id FROM `lpl_cockpit.shopify_customer_orders`
+  WHERE customer_id IS NOT NULL
+),
+fo AS (SELECT customer_id, MIN(date) AS first_date FROM oc GROUP BY customer_id),
+j  AS (SELECT o.date, o.customer_id, f.first_date FROM oc o JOIN fo f USING (customer_id))
+SELECT 'day' AS grain, FORMAT_DATE('%Y-%m-%d', date) AS period,
+       COUNT(DISTINCT IF(date = first_date, customer_id, NULL)) AS new_customers,
+       COUNT(DISTINCT IF(date > first_date, customer_id, NULL)) AS returning_customers
+FROM j GROUP BY 2
+UNION ALL
+SELECT 'week', FORMAT_DATE('%G-W%V', date),
+       COUNT(DISTINCT IF(DATE_TRUNC(date, ISOWEEK) = DATE_TRUNC(first_date, ISOWEEK), customer_id, NULL)),
+       COUNT(DISTINCT IF(DATE_TRUNC(date, ISOWEEK) > DATE_TRUNC(first_date, ISOWEEK), customer_id, NULL))
+FROM j GROUP BY 2
+UNION ALL
+SELECT 'month', FORMAT_DATE('%Y-%m', date),
+       COUNT(DISTINCT IF(DATE_TRUNC(date, MONTH) = DATE_TRUNC(first_date, MONTH), customer_id, NULL)),
+       COUNT(DISTINCT IF(DATE_TRUNC(date, MONTH) > DATE_TRUNC(first_date, MONTH), customer_id, NULL))
+FROM j GROUP BY 2;
+
+-- 5h) Clients — map customer_id -> email (clé de rapprochement web<->retail).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.customer_emails` (
+  customer_id STRING, email STRING, updated_at TIMESTAMP NOT NULL
+) OPTIONS (description = "Map Shopify customer_id -> email.");
+-- (retail_purchases et customers_period sont créées par CREATE OR REPLACE dans customers_metrics.)
+
 -- ============================================================================
 -- VUE D'ENSEMBLE — un point par jour, prête pour le front / Looker Studio.
 -- COS blended = (dépense Meta + Google) / CA net Shopify.

@@ -15,7 +15,7 @@ from google.cloud import bigquery
 
 from ingestion import bq_io
 
-META_TOKEN   = os.environ["META_ACCESS_TOKEN"]
+META_TOKEN   = os.environ["META_ACCESS_TOKEN"].strip()
 META_ACCOUNT = os.environ.get("META_ACCOUNT_ID", "305450184")   # sans 'act_'
 API_VERSION  = os.environ.get("META_API_VERSION", "v21.0")
 BQ_PROJECT   = os.environ["BQ_PROJECT"]

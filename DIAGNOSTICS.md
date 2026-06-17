@@ -89,6 +89,37 @@ gcloud run jobs add-iam-policy-binding lpl-cockpit-sessions --region europe-west
 - Écart CA vs Shopify Analytics = rappeler la logique LPL (exclusions b2b/wholesale/alan/non-web,
   remboursements re-datés à la commande).
 
+### H. Clients (Nouveaux/Fidèles, CAC, ROPO) en retard ou faux
+Pipeline : `shopify_customers.refresh(45)` écrit `shopify_customer_orders` (web, via `order.email`),
+puis `customers_metrics.refresh()` reconstruit **4 tables dérivées** (`CREATE OR REPLACE`, dans cet ordre) :
+`retail_purchases` (DWH boutique externe par email) → `customers_period` → `acquisition_period` → `ropo_month`.
+- **Encart « État des données » → Clients en rouge** = `customers_period` (scope web, grain day) en retard.
+  Cause quasi toujours = le job de nuit a échoué AVANT l'étape clients (voir D), ou `shopify_customer_orders`
+  pas à jour. Vérifier : `SELECT MAX(period_start) FROM customers_period WHERE scope='web' AND grain='day'`.
+- **`customers_metrics` en erreur dans les logs du job** : le plus souvent une requête refusée par BigQuery.
+  Piège connu : **les sous-requêtes corrélées avec condition de plage (`date < pstart`) sont interdites** →
+  toujours passer par un `LEFT JOIN` + `MAX(IF(...))` (déjà fait dans `_period_sql`/`_ropo_sql`). Ne pas réintroduire d'`EXISTS`.
+- **Taux de Fidèles anormalement bas (~13 % au lieu de ~33-46 %)** = données boutique manquantes.
+  Vérifier l'accès SA au DWH retail (`stable-splicer-294813...transaction_details_visits`, rôle dataViewer)
+  et que `retail_purchases` n'est pas vide. Sans le retail, le scope global ≈ web.
+- **CAC qui explose un jour précis (ex. dimanches)** = normal si on regardait le global (boutiques fermées →
+  0 nouveau). Le CAC est volontairement **web-only** (dénominateur = nouveaux clients web). Ne pas « corriger ».
+- **`retail_purchases` double-comptage** : la source bascule `opticbox` (<2023-12-20) / `invoice_optimum` (≥),
+  réglé par `RETAIL_CUTOVER`. Ne pas élargir la fenêtre des deux sources en même temps.
+
+### I. Appli lente à charger
+La donnée ne change qu'1×/nuit → toute lenteur est de la **latence**, pas du volume (tables ~700 lignes).
+Ordre des causes (de la plus probable à la moins) :
+1. **Cold start Cloud Run** (`min-instances=0` → conteneur éteint quand inactif). 1er chargement de la
+   journée = plusieurs secondes. Correctif n°1 : `--min-instances=1` (+`--cpu-boost`) sur `lpl-cockpit-web`.
+2. **Cache mémoire vidé** : `_BQ_CACHE`/`_ALERTS_CACHE` sont par-process et meurent à chaque cold start.
+   Mitigé par 1 worker (cache partagé) + min-instances=1 (instance qui reste chaude).
+3. **Onglet Meta lent au 1er clic** : `/api/meta/alerts` appelle l'API Graph Meta **en direct** (pas BQ),
+   donc tributaire de la latence Meta. Caché 15 min/fenêtre. Optimisation future : recalculer les alertes
+   depuis `meta_daily` (déjà en base) au lieu de l'API live.
+4. **`cockpit_daily` est une VUE** recomposée à chaque requête (overview/periods/acquisition). Coût faible
+   (petites tables partitionnées) ; matérialisable en table le soir si besoin.
+
 ---
 
 ## Inventaire de référence (pour ne pas chercher)
@@ -100,8 +131,10 @@ gcloud run jobs add-iam-policy-binding lpl-cockpit-sessions --region europe-west
 | Compte de service | `lpl-cockpit-ingest@shopify-data-ltv.iam.gserviceaccount.com` |
 | Job nuit (tout) | `lpl-cockpit-job` — Scheduler `lpl-cockpit-nightly` (6h Paris) |
 | Job sessions | `lpl-cockpit-sessions` — Scheduler `lpl-cockpit-sessions-hourly` |
-| Appli web | service Cloud Run `lpl-cockpit-web` |
-| Secrets | `META_ACCESS_TOKEN`, `SHOPIFY_ACCESS_TOKEN`, `COCKPIT_SECRET_KEY`, `GOOGLE_OAUTH_CLIENT_SECRET` |
+| Appli web | service Cloud Run `lpl-cockpit-web` (gunicorn **1 worker** / 8 threads → cache mémoire partagé) |
+| Tables clients | `shopify_customer_orders` (web+email) → dérivées : `retail_purchases`, `customers_period`, `acquisition_period`, `ropo_month` |
+| DWH boutique (externe) | `stable-splicer-294813.dwh_datasource_sales.transaction_details_visits` (SA = dataViewer) |
+| Secrets | `META_ACCESS_TOKEN`, `SHOPIFY_ACCESS_TOKEN` (épinglé `:1`), `COCKPIT_SECRET_KEY`, `GOOGLE_OAUTH_CLIENT_SECRET` |
 | Sheet objectifs | `1Ct23…` onglet `Budget 2026` (CA ligne 8, dépense ligne 15) |
 | Sheet coûts Google | `1ZrKs7…` onglet `GoogleAds` |
 | Sheet sessions récent | `1uHl3…` onglet `Sessions` (dynamique, scraper Mac) |

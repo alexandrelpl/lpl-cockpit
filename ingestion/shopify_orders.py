@@ -41,7 +41,7 @@ from ingestion import bq_io
 socket.setdefaulttimeout(120)
 
 SHOP_URL      = os.environ["SHOPIFY_SHOP_URL"]            # ex: test-store20.myshopify.com (= PROD LPL)
-ACCESS_TOKEN  = os.environ["SHOPIFY_ACCESS_TOKEN"]
+ACCESS_TOKEN  = os.environ["SHOPIFY_ACCESS_TOKEN"].strip()   # .strip() : un \n parasite casse l'en-tête HTTP
 API_VERSION   = os.environ.get("SHOPIFY_API_VERSION", "2024-01")
 BQ_PROJECT    = os.environ["BQ_PROJECT"]
 BQ_DATASET    = os.environ.get("BQ_DATASET", "lpl_cockpit")
@@ -95,16 +95,22 @@ def _graphql(query_string: str, cursor: str | None) -> dict:
         if r.status_code == 429:
             time.sleep(2 * (attempt + 1))
             continue
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"Shopify AUTH {r.status_code} : token invalide ou scope read_orders "
+                               f"manquant -> mettre à jour le secret SHOPIFY_ACCESS_TOKEN. {r.text[:200]}")
         if r.status_code >= 500:
             print(f"  [shopify] HTTP {r.status_code} (tentative {attempt + 1}/8)", flush=True)
             time.sleep(3 * (attempt + 1))
             continue
         data = r.json()
-        if "errors" in data and data["errors"]:
-            if any(e.get("extensions", {}).get("code") == "THROTTLED" for e in data["errors"]):
+        errs = data.get("errors")
+        if errs:
+            if isinstance(errs, str):   # 401/403 renvoient souvent errors=str -> message clair
+                raise RuntimeError(f"Shopify GraphQL (token/scope ?) : {errs}")
+            if any(e.get("extensions", {}).get("code") == "THROTTLED" for e in errs):
                 time.sleep(2 * (attempt + 1))
                 continue
-            raise RuntimeError(f"Shopify GraphQL errors: {data['errors']}")
+            raise RuntimeError(f"Shopify GraphQL errors: {errs}")
         cost = data.get("extensions", {}).get("cost", {})
         global _THROTTLE, _LAST_COST
         _THROTTLE = cost.get("throttleStatus", _THROTTLE)

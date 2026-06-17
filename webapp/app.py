@@ -36,7 +36,7 @@ BQ_DATASET     = os.environ.get("BQ_DATASET", "lpl_cockpit")
 BQ_LOCATION    = os.environ.get("BQ_LOCATION", "EU")
 ALLOWED_DOMAIN = os.environ.get("ALLOWED_DOMAIN", "lepetitlunetier.com")
 ROI_FLOOR      = float(os.environ.get("ROI_FLOOR", "2"))
-META_TOKEN     = os.environ.get("META_ACCESS_TOKEN", "")
+META_TOKEN     = os.environ.get("META_ACCESS_TOKEN", "").strip()
 META_ACCOUNT   = os.environ.get("META_ACCOUNT_ID", "305450184")
 META_API       = os.environ.get("META_API_VERSION", "v21.0")
 # Objectifs (Google Sheet « Budget 2026 » : CA en ligne 8, dépense en ligne 15,
@@ -85,6 +85,33 @@ def login_required(fn):
             return redirect(url_for("login"))
         return fn(*a, **kw)
     return wrapper
+
+
+# ---- cache mémoire des endpoints BigQuery (la donnée ne change qu'1×/nuit) ----
+_BQ_CACHE: dict = {}
+
+def bq_cache(ttl=900):
+    """Sert la réponse JSON en cache si < ttl s (clé = chemin + query string). ?force=1 bypass."""
+    def deco(fn):
+        @functools.wraps(fn)
+        def wrapper(*a, **kw):
+            if request.args.get("force"):
+                return fn(*a, **kw)
+            key = request.full_path
+            ent = _BQ_CACHE.get(key)
+            now = time.time()
+            if ent and now - ent[0] < ttl:
+                return app.response_class(ent[1], mimetype="application/json")
+            out = fn(*a, **kw)
+            resp = out[0] if isinstance(out, tuple) else out
+            try:
+                if getattr(resp, "status_code", 200) == 200:
+                    _BQ_CACHE[key] = (now, resp.get_data(as_text=True))
+            except Exception:  # noqa: BLE001
+                pass
+            return out
+        return wrapper
+    return deco
 
 
 @app.route("/login")
@@ -154,6 +181,7 @@ def _roas_window(series, spend_key, value_key, days=3):
 # ---- API : vue d'ensemble (COS) ----
 @app.route("/api/overview")
 @login_required
+@bq_cache()
 def api_overview():
     days = min(int(request.args.get("days", 30)), 400)
     fetch = max(days, 16)   # on tire au moins 16 j pour calculer les tendances 7j
@@ -210,6 +238,7 @@ def api_overview():
 # ---- API : détail par semaine / par mois (avec comparatif N-1 pro-rata) ----
 @app.route("/api/periods")
 @login_required
+@bq_cache()
 def api_periods():
     end = date.today() - timedelta(days=1)   # J-1 : on ignore le jour partiel
     rows = q(
@@ -280,6 +309,7 @@ def api_periods():
 # ---- API : Meta (campagnes, depuis BigQuery) ----
 @app.route("/api/meta")
 @login_required
+@bq_cache()
 def api_meta():
     days = min(int(request.args.get("days", 7)), 90)
     daily = q(
@@ -323,6 +353,7 @@ def api_meta():
 # ---- API : Google (depuis BigQuery, vide tant que pas d'accès Basic) ----
 @app.route("/api/google")
 @login_required
+@bq_cache()
 def api_google():
     days = min(int(request.args.get("days", 7)), 90)
     win = (f"date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL @d DAY) "
@@ -364,6 +395,7 @@ def api_google():
 
 @app.route("/api/google/asset-groups")
 @login_required
+@bq_cache()
 def api_google_asset_groups():
     days = min(int(request.args.get("days", 30)), 90)
     try:
@@ -380,6 +412,373 @@ def api_google_asset_groups():
             r["cpa"] = (r["cost"] / r["conv"]) if r["conv"] else 0
         return jsonify({"ok": True, "rows": rows})
     except Exception as e:  # noqa: BLE001 (table peut ne pas encore exister)
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : CRO (funnel GA4 + produits + canaux + disponibilité) ----
+def _pct(a, b):
+    return round((a - b) / b * 100, 1) if (a is not None and b) else None
+
+def _pts(a, b):
+    return round((a - b) * 100, 1) if (a is not None and b is not None) else None
+
+# CRO : on ne pilote l'écoulement / la disponibilité que sur le cœur de gamme.
+CRO_PRODUCT_TYPES = ["Monture Optique", "Solaires"]
+
+
+def _norm(x):
+    return (x or "").strip().lower()
+
+
+def _rupture_reason(it):
+    """Réalité métier : indisponible bien avant stock 0."""
+    if it["status"] != "ACTIVE":
+        return "Brouillon / archivée"
+    if not it["published"]:
+        return "Retirée de Boutique en ligne"
+    if it["total_inventory"] is not None and it["total_inventory"] <= 0:
+        return "Stock épuisé"
+    return None
+
+
+def _inventory_map():
+    """(liste, map normalisée) du stock cœur de gamme."""
+    inv = q(f"""SELECT product_title, total_inventory, status, published
+                FROM {T('shopify_inventory')} WHERE product_type IN UNNEST(@types)""",
+            [bigquery.ArrayQueryParameter("types", "STRING", CRO_PRODUCT_TYPES)])
+    return inv, {_norm(r["product_title"]): r for r in inv}
+
+
+def _oos_sellers(end, min_sales=5):
+    """Produits du cœur de gamme qui ont vendu (>= min_sales sur 14 j) mais sont
+    indisponibles maintenant. Matching GA4<->Shopify insensible casse/espaces."""
+    sells = q(f"""SELECT item_name, SUM(purchases) pur, SUM(revenue) rev
+                  FROM {T('ga4_items_daily')}
+                  WHERE date >= DATE_SUB(@e, INTERVAL 14 DAY)
+                  GROUP BY item_name HAVING pur >= @ms""",
+              [bigquery.ScalarQueryParameter("e", "DATE", end.isoformat()),
+               bigquery.ScalarQueryParameter("ms", "INT64", min_sales)])
+    inv, stock = _inventory_map()
+    oos = []
+    for s in sells:
+        it = stock.get(_norm(s["item_name"]))
+        if not it:
+            continue
+        reason = _rupture_reason(it)
+        if reason:
+            oos.append({"product": s["item_name"], "purchases_14d": s["pur"],
+                        "revenue_14d": round(s["rev"], 2), "stock": it["total_inventory"],
+                        "reason": reason})
+    oos.sort(key=lambda x: x["purchases_14d"], reverse=True)
+    active = sum(1 for r in inv if _rupture_reason(r))
+    return oos, active
+
+
+def _product_movers(end, lookback, base, stock, min_delta=3, drop=0.70, surge=1.30, max_each=2):
+    """Produits cœur de gamme qui bougent fort (hausses ET baisses) sur `lookback` jours
+    vs les `lookback` jours précédents. Pour les baisses, on classe la cause via les vues
+    GA4 + le stock : amont (pub catalogue/lien/merch home), disponibilité, ou fiche."""
+    cs = (end - timedelta(days=lookback - 1)).isoformat(); ce = end.isoformat()
+    ps = (end - timedelta(days=2 * lookback - 1)).isoformat(); pe = (end - timedelta(days=lookback)).isoformat()
+    rows = q(f"""SELECT i.item_name,
+                   SUM(IF(i.date BETWEEN @cs AND @ce, i.purchases, 0)) cp,
+                   SUM(IF(i.date BETWEEN @ps AND @pe, i.purchases, 0)) pp,
+                   SUM(IF(i.date BETWEEN @cs AND @ce, i.views, 0)) cv,
+                   SUM(IF(i.date BETWEEN @ps AND @pe, i.views, 0)) pv
+                 FROM {T('ga4_items_daily')} i
+                 JOIN (SELECT DISTINCT product_title FROM {T('shopify_inventory')}
+                       WHERE product_type IN UNNEST(@types)) s
+                   ON LOWER(TRIM(i.item_name)) = LOWER(TRIM(s.product_title))
+                 WHERE i.date BETWEEN @ps AND @ce GROUP BY i.item_name""",
+             [bigquery.ScalarQueryParameter("cs", "DATE", cs), bigquery.ScalarQueryParameter("ce", "DATE", ce),
+              bigquery.ScalarQueryParameter("ps", "DATE", ps), bigquery.ScalarQueryParameter("pe", "DATE", pe),
+              bigquery.ArrayQueryParameter("types", "STRING", CRO_PRODUCT_TYPES)])
+    down, up = [], []
+    for r in rows:
+        cp, pp, delta = r["cp"], r["pp"], r["cp"] - r["pp"]
+        if max(cp, pp) < base or abs(delta) < min_delta:
+            continue
+        pct = round((cp - pp) / pp * 100, 1) if pp else None
+        if pp and cp <= pp * drop:  # baisse marquée
+            vdrop = ((r["cv"] - r["pv"]) / r["pv"]) if r["pv"] else None
+            it = stock.get(_norm(r["item_name"]))
+            reason = _rupture_reason(it) if it else None
+            if reason:
+                cause = f"indisponible ({reason.lower()})"
+            elif vdrop is not None and vdrop <= -0.30:
+                cause = f"vues −{abs(round(vdrop * 100))}% (amont : pub/merch)"
+            else:
+                cause = "conversion fiche en baisse"
+            down.append({"product": r["item_name"], "cur": cp, "prev": pp, "pct": pct,
+                         "delta": delta, "cause": cause})
+        elif (pp == 0 and cp >= base) or (pp and cp >= pp * surge):  # hausse marquée ou nouveau
+            up.append({"product": r["item_name"], "cur": cp, "prev": pp, "pct": pct,
+                       "delta": delta, "new": pp == 0})
+    down.sort(key=lambda x: x["delta"])
+    up.sort(key=lambda x: -x["delta"])
+    return down[:max_each], up[:max_each]
+
+
+@app.route("/api/cro")
+@login_required
+@bq_cache()
+def api_cro():
+    end = date.today() - timedelta(days=1)
+    rows = q(f"""SELECT date, COALESCE(sessions,0) s, COALESCE(add_to_carts,0) atc,
+                        COALESCE(checkouts,0) co, COALESCE(purchases,0) pu, COALESCE(item_views,0) iv
+                 FROM {T('ga4_funnel_daily')}
+                 WHERE date <= @e AND date >= DATE_SUB(@e, INTERVAL 15 DAY)""",
+             [bigquery.ScalarQueryParameter("e", "DATE", end.isoformat())])
+    by = {r["date"]: r for r in rows}
+
+    def agg(d0, d1):
+        s = atc = co = pu = iv = 0
+        dd = d0
+        while dd <= d1:
+            r = by.get(dd)
+            if r:
+                s += r["s"]; atc += r["atc"]; co += r["co"]; pu += r["pu"]; iv += r["iv"]
+            dd += timedelta(days=1)
+        return {"sessions": s, "atc": atc, "checkout": co, "orders": pu, "item_views": iv,
+                "atc_rate": (atc / s) if s else None,
+                "checkout_rate": (co / atc) if atc else None,
+                "completion_rate": (pu / co) if co else None,
+                "cvr": (pu / s) if s else None}
+
+    def win(label, d):
+        cur = agg(end - timedelta(days=d - 1), end)
+        prev = agg(end - timedelta(days=2 * d - 1), end - timedelta(days=d))
+        return {"label": label, "current": cur, "previous": prev,
+                "cmp": {"sessions": _pct(cur["sessions"], prev["sessions"]),
+                        "atc": _pct(cur["atc"], prev["atc"]),
+                        "checkout": _pct(cur["checkout"], prev["checkout"]),
+                        "orders": _pct(cur["orders"], prev["orders"]),
+                        "atc_rate": _pts(cur["atc_rate"], prev["atc_rate"]),
+                        "checkout_rate": _pts(cur["checkout_rate"], prev["checkout_rate"]),
+                        "completion_rate": _pts(cur["completion_rate"], prev["completion_rate"]),
+                        "cvr": _pts(cur["cvr"], prev["cvr"])}}
+
+    windows = [win("Hier (J-1)", 1), win("3 derniers jours", 3), win("7 derniers jours", 7)]
+
+    # ---- Diagnostic 2 horizons (3 j / 7 j), funnel + produits, hausses ET baisses ----
+    rate_labels = [("atc_rate", "Sessions → ATC"), ("checkout_rate", "ATC → Checkout"),
+                   ("completion_rate", "Checkout → Commande")]
+    try:
+        _, stock = _inventory_map()
+    except Exception:  # noqa: BLE001
+        stock = {}
+
+    base_by_h = {1: 3, 3: 5, 7: 8}
+    horizons = []
+    for label, hw, win in [("Hier (J-1)", 1, windows[0]), ("3 derniers jours", 3, windows[1]),
+                           ("7 derniers jours", 7, windows[2])]:
+        cmp = win["cmp"]
+        downs = [(l, cmp[k]) for k, l in rate_labels if cmp.get(k) is not None and cmp[k] <= -1]
+        ups = [(l, cmp[k]) for k, l in rate_labels if cmp.get(k) is not None and cmp[k] >= 1]
+        fdown = min(downs, key=lambda x: x[1]) if downs else None
+        fup = max(ups, key=lambda x: x[1]) if ups else None
+        try:
+            md, mu = _product_movers(end, hw, base_by_h[hw], stock)
+        except Exception:  # noqa: BLE001
+            md, mu = [], []
+        horizons.append({"label": label, "lookback": hw,
+                         "cvr_pts": cmp.get("cvr"), "orders_pct": cmp.get("orders"),
+                         "sessions_pct": cmp.get("sessions"),
+                         "funnel_down": ({"step": fdown[0], "pts": fdown[1]} if fdown else None),
+                         "funnel_up": ({"step": fup[0], "pts": fup[1]} if fup else None),
+                         "movers_down": md, "movers_up": mu})
+
+    # Contexte conservateur (calculé une fois, fenêtre 3 j).
+    context = []
+    try:
+        cs3, ce3 = (end - timedelta(days=2)).isoformat(), end.isoformat()
+        ps3, pe3 = (end - timedelta(days=5)).isoformat(), (end - timedelta(days=3)).isoformat()
+        ch = q(f"""SELECT channel,
+                     SUM(IF(date BETWEEN @cs AND @ce, sessions, 0)) cs,
+                     SUM(IF(date BETWEEN @ps AND @pe, sessions, 0)) ps,
+                     SUM(IF(date BETWEEN @cs AND @ce, purchases, 0)) cp
+                   FROM {T('ga4_channels_daily')} WHERE date BETWEEN @ps AND @ce GROUP BY channel""",
+               [bigquery.ScalarQueryParameter("cs", "DATE", cs3), bigquery.ScalarQueryParameter("ce", "DATE", ce3),
+                bigquery.ScalarQueryParameter("ps", "DATE", ps3), bigquery.ScalarQueryParameter("pe", "DATE", pe3)])
+        tc = sum(r["cs"] for r in ch) or 0
+        tp = sum(r["ps"] for r in ch) or 0
+        blended = (sum(r["cp"] for r in ch) / tc) if tc else None
+        best = None
+        for r in ch:
+            if not (tc and tp and r["cs"]):
+                continue
+            gain = (r["cs"] / tc - r["ps"] / tp) * 100
+            cvr = r["cp"] / r["cs"]
+            if gain >= 5 and blended and cvr < blended * 0.8 and (best is None or gain > best[1]):
+                best = (r["channel"], round(gain, 1))
+        if best:
+            context.append(f"Mix de trafic : « {best[0]} » (CVR plus faible) a gagné {best[1]} pts de part sur 3 j "
+                           "— un repli de conversion peut venir d'un trafic moins qualifié, pas du site.")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        so = len(_oos_sellers(end, 5)[0])
+        if so:
+            context.append(f"{so} produit(s) fort(s) vendeur(s) actuellement en rupture — voir « Produits en Rupture ».")
+    except Exception:  # noqa: BLE001
+        pass
+    context.append("Facteurs externes non mesurés (saisonnalité, pré-soldes, météo, actualité) : à garder en tête.")
+
+    return jsonify({"windows": windows, "diagnosis": {"horizons": horizons, "context": context}})
+
+
+@app.route("/api/cro/products")
+@login_required
+@bq_cache()
+def api_cro_products():
+    d = max(1, min(int(request.args.get("days", 3)), 14))
+    end = date.today() - timedelta(days=1)
+    cs, ce = (end - timedelta(days=d - 1)).isoformat(), end.isoformat()
+    ps, pe = (end - timedelta(days=2 * d - 1)).isoformat(), (end - timedelta(days=d)).isoformat()
+    rows = q(f"""SELECT i.item_name,
+                   SUM(IF(i.date BETWEEN @cs AND @ce, i.purchases, 0)) cur_pur,
+                   SUM(IF(i.date BETWEEN @ps AND @pe, i.purchases, 0)) prev_pur,
+                   SUM(IF(i.date BETWEEN @cs AND @ce, i.add_to_carts, 0)) cur_atc,
+                   SUM(IF(i.date BETWEEN @ps AND @pe, i.add_to_carts, 0)) prev_atc,
+                   SUM(IF(i.date BETWEEN @cs AND @ce, i.revenue, 0)) cur_rev
+                 FROM {T('ga4_items_daily')} i
+                 JOIN (SELECT DISTINCT product_title FROM {T('shopify_inventory')}
+                       WHERE product_type IN UNNEST(@types)) s
+                   ON LOWER(TRIM(i.item_name)) = LOWER(TRIM(s.product_title))
+                 WHERE i.date BETWEEN @ps AND @ce
+                 GROUP BY i.item_name""",
+             [bigquery.ScalarQueryParameter("cs", "DATE", cs), bigquery.ScalarQueryParameter("ce", "DATE", ce),
+              bigquery.ScalarQueryParameter("ps", "DATE", ps), bigquery.ScalarQueryParameter("pe", "DATE", pe),
+              bigquery.ArrayQueryParameter("types", "STRING", CRO_PRODUCT_TYPES)])
+    for r in rows:
+        dp = _pct(r["cur_pur"], r["prev_pur"])
+        r["delta_pct"] = dp
+        r["flag"] = ("red" if dp is not None and dp <= -50
+                     else "amber" if dp is not None and dp <= -20
+                     else "green" if dp is not None and dp >= 50
+                     else "lime" if dp is not None and dp >= 20
+                     else "")
+    top = sorted([r for r in rows if r["cur_pur"] > 0 or r["prev_pur"] > 0],
+                 key=lambda r: r["cur_pur"], reverse=True)[:20]
+    entrants = sorted([r for r in rows if r["cur_pur"] > 0 and r["prev_pur"] == 0],
+                      key=lambda r: r["cur_pur"], reverse=True)[:10]
+    tot_cur = sum(r["cur_pur"] for r in rows) or 0
+    tot_prev = sum(r["prev_pur"] for r in rows) or 0
+    top3_cur = sum(sorted((r["cur_pur"] for r in rows), reverse=True)[:3])
+    top3_prev = sum(sorted((r["prev_pur"] for r in rows), reverse=True)[:3])
+    allp = sorted([r for r in rows if r["cur_pur"] > 0 or r["prev_pur"] > 0 or r["cur_atc"] > 0],
+                  key=lambda r: r["cur_pur"], reverse=True)[:500]
+    return jsonify({"days": d, "top": top, "products": allp, "entrants": entrants,
+                    "concentration": {"top3_share_cur": (top3_cur / tot_cur) if tot_cur else None,
+                                      "top3_share_prev": (top3_prev / tot_prev) if tot_prev else None}})
+
+
+@app.route("/api/cro/channels")
+@login_required
+@bq_cache()
+def api_cro_channels():
+    d = max(1, min(int(request.args.get("days", 7)), 30))
+    end = date.today() - timedelta(days=1)
+    cs, ce = (end - timedelta(days=d - 1)).isoformat(), end.isoformat()
+    ps, pe = (end - timedelta(days=2 * d - 1)).isoformat(), (end - timedelta(days=d)).isoformat()
+    rows = q(f"""SELECT channel,
+                   SUM(IF(date BETWEEN @cs AND @ce, sessions, 0)) cur_s,
+                   SUM(IF(date BETWEEN @ps AND @pe, sessions, 0)) prev_s,
+                   SUM(IF(date BETWEEN @cs AND @ce, purchases, 0)) cur_pu,
+                   SUM(IF(date BETWEEN @cs AND @ce, revenue, 0)) cur_rev
+                 FROM {T('ga4_channels_daily')} WHERE date BETWEEN @ps AND @ce
+                 GROUP BY channel HAVING cur_s > 0 OR prev_s > 0""",
+             [bigquery.ScalarQueryParameter("cs", "DATE", cs), bigquery.ScalarQueryParameter("ce", "DATE", ce),
+              bigquery.ScalarQueryParameter("ps", "DATE", ps), bigquery.ScalarQueryParameter("pe", "DATE", pe)])
+    tot = sum(r["cur_s"] for r in rows) or 1
+    for r in rows:
+        r["cvr"] = (r["cur_pu"] / r["cur_s"]) if r["cur_s"] else None
+        r["share"] = r["cur_s"] / tot
+        r["sessions_cmp"] = _pct(r["cur_s"], r["prev_s"])
+    rows.sort(key=lambda r: r["cur_s"], reverse=True)
+
+    # Série quotidienne pour le graphe de tendance, top 5 canaux (fenêtre paramétrable).
+    span = max(7, min(int(request.args.get("chart_days", 28)), 120))
+    sd = end - timedelta(days=span - 1)
+    sr = q(f"""SELECT date, channel, SUM(sessions) s FROM {T('ga4_channels_daily')}
+               WHERE date BETWEEN @sd AND @e GROUP BY date, channel""",
+           [bigquery.ScalarQueryParameter("sd", "DATE", sd.isoformat()),
+            bigquery.ScalarQueryParameter("e", "DATE", end.isoformat())])
+    dates = [sd + timedelta(days=i) for i in range((end - sd).days + 1)]
+    totals, bykey = {}, {}
+    for r in sr:
+        totals[r["channel"]] = totals.get(r["channel"], 0) + (r["s"] or 0)
+        bykey[(r["date"], r["channel"])] = r["s"] or 0
+    top5 = [c for c, _ in sorted(totals.items(), key=lambda kv: kv[1], reverse=True)[:5]]
+    series = {"dates": [dt.isoformat() for dt in dates], "span_days": span,
+              "channels": [{"name": c, "sessions": [bykey.get((dt, c), 0) for dt in dates]} for c in top5],
+              "provisional_days": 2}
+    return jsonify({"days": d, "channels": rows, "series": series})
+
+
+@app.route("/api/cro/availability")
+@login_required
+@bq_cache()
+def api_cro_availability():
+    end = date.today() - timedelta(days=1)
+    min_sales = max(1, min(int(request.args.get("min_sales", 5)), 100))
+    try:
+        oos, active_oos = _oos_sellers(end, min_sales)
+        return jsonify({"ok": True, "min_sales": min_sales,
+                        "out_of_stock_sellers": oos[:20], "active_oos_total": active_oos})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : clients new vs returning (customer-level, cohorte, par grain) ----
+@app.route("/api/customers")
+@login_required
+@bq_cache()
+def api_customers():
+    scope = request.args.get("scope", "global")
+    if scope not in ("web", "global"):
+        scope = "global"
+    try:
+        out = {}
+        for grain, lim in [("day", 21), ("week", 10), ("month", 13)]:
+            # On s'arrête à hier : le jour en cours (partiel) n'est pas affiché.
+            cutoff = "AND period_start < CURRENT_DATE()" if grain == "day" else ""
+            rows = q(f"""SELECT period, new_customers, returning_customers, new_brand
+                         FROM {T('customers_period')}
+                         WHERE scope = @s AND grain = @g {cutoff}
+                         ORDER BY period_start DESC LIMIT @n""",
+                     [bigquery.ScalarQueryParameter("s", "STRING", scope),
+                      bigquery.ScalarQueryParameter("g", "STRING", grain),
+                      bigquery.ScalarQueryParameter("n", "INT64", lim)])
+            for r in rows:
+                tot = (r["new_customers"] or 0) + (r["returning_customers"] or 0)
+                r["pct_new"] = (r["new_customers"] / tot) if tot else None
+            out[grain] = list(reversed(rows))   # ordre chronologique
+        return jsonify({"ok": True, "scope": scope, **out})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : acquisition & valeur (CAC brut + ROPO) ----
+@app.route("/api/acquisition")
+@login_required
+@bq_cache()
+def api_acquisition():
+    try:
+        out = {}
+        for grain, lim in [("day", 21), ("week", 10), ("month", 13)]:
+            cutoff = "AND period_start < CURRENT_DATE()" if grain == "day" else ""
+            rows = q(f"""SELECT period, ad_spend, new_web, cac FROM {T('acquisition_period')}
+                         WHERE grain = @g {cutoff} ORDER BY period_start DESC LIMIT @n""",
+                     [bigquery.ScalarQueryParameter("g", "STRING", grain),
+                      bigquery.ScalarQueryParameter("n", "INT64", lim)])
+            out[grain] = list(reversed(rows))
+        ropo = q(f"""SELECT period, web_to_store, store_to_web, total_web, total_store FROM {T('ropo_month')}
+                     WHERE period_start < DATE_TRUNC(CURRENT_DATE(), MONTH)
+                     ORDER BY period_start DESC LIMIT 6""")
+        out["ropo"] = list(reversed(ropo))
+        return jsonify({"ok": True, **out})
+    except Exception as e:  # noqa: BLE001
         return jsonify({"ok": False, "error": str(e)}), 200
 
 
@@ -438,77 +837,240 @@ def _roas(row):
     return (val / spend) if spend else 0, spend
 
 
-_ALERTS_CACHE: dict = {"ts": 0.0, "data": None}
+_ALERTS_CACHE: dict = {}   # par fenêtre : {win: {"ts":…, "data":…}}
+
+def _bsig(bud, spend_of, end, cbo=False):
+    """Signal budget générique (marche pour un adset ABO ou une campagne CBO).
+    `bud` = {date_iso: budget}, `spend_of(date_iso)` -> dépense de ce niveau ce jour-là.
+
+    Affichage immédiat : si la date exacte manque, on retombe sur le snapshot le plus récent
+    (= budget courant). Les ALERTES (changé hier / over-under qui dure) exigent, elles, de
+    l'historique réel pour ne pas inventer de signal."""
+    snaps = sorted(bud)
+    latest = bud[snaps[-1]] if snaps else None
+
+    def bud_for(d):
+        if d in bud:
+            return bud[d]
+        prior = [s for s in snaps if s <= d]
+        return bud[prior[-1]] if prior else latest
+
+    pre = "CBO · " if cbo else ""
+    d0, d1 = end.isoformat(), (end - timedelta(days=1)).isoformat()
+    bn = bud_for(d0)
+    e0, e1 = bud.get(d0), bud.get(d1)   # changement : snapshots EXACTS uniquement
+    changed = e0 is not None and e1 is not None and abs(e0 - e1) > 0.01
+    chg = ((e0 - e1) / e1 * 100) if (changed and e1) else None
+    last3 = [(end - timedelta(days=i)).isoformat() for i in range(3)]
+    utils = [spend_of(dd) / bud_for(dd) for dd in last3 if bud_for(dd)]
+    util3 = round(sum(utils) / len(utils) * 100) if utils else None
+    real3 = [bud[dd] for dd in last3 if dd in bud]   # over/under : 3 snapshots RÉELS
+    flat = len(real3) >= 3 and (max(real3) - min(real3) <= 0.01)
+    status, note = None, None
+    if changed:
+        note = pre + f"budget {'+' if chg >= 0 else ''}{chg:.0f}% hier"
+    elif flat and len(utils) >= 3:
+        if all(u >= 0.90 for u in utils):
+            status, note = "overspend", pre + "budget saturé ≥3 j (sans changement)"
+        elif all(u <= 0.60 for u in utils):
+            status, note = "underspend", pre + "sous-délivré ≥3 j (sans changement)"
+    elif cbo and bn is not None:
+        note = "CBO · budget campagne"
+    return {"budget_now": (round(bn, 2) if bn is not None else None),
+            "changed": changed, "chg_pct": (round(chg, 1) if chg is not None else None),
+            "util_3d": util3, "status": status, "note": note, "cbo": cbo}
+
 
 @app.route("/api/meta/alerts")
 @login_required
 def api_meta_alerts():
-    # Cache 15 min (les alertes ne bougent pas à la minute, l'API Meta est lente) — sauf ?force=1.
+    # Cache 15 min par fenêtre (1/3/7 j) — sauf ?force=1.
+    win = int(request.args.get("window", 3))
+    if win not in (1, 3, 7):
+        win = 3
     force = request.args.get("force")
-    if not force and _ALERTS_CACHE["data"] and time.time() - _ALERTS_CACHE["ts"] < 900:
-        return jsonify(_ALERTS_CACHE["data"])
+    c = _ALERTS_CACHE.get(win)
+    if not force and c and time.time() - c["ts"] < 900:
+        return jsonify(c["data"])
     try:
+        F = ROI_FLOOR
+        gate = max(5.0, round(20.0 * win / 3.0))   # seuil de dépense proportionnel à la fenêtre (20 €/3 j)
         end = date.today() - timedelta(days=1)
-        since = (end - timedelta(days=6)).isoformat()
+        since = (end - timedelta(days=13)).isoformat()   # 14 j : fenêtre courante + précédente jusqu'à 7 j
         end_s = end.isoformat()
 
-        # 4 appels Meta indépendants -> en parallèle (au lieu de 6 en série).
         with ThreadPoolExecutor(max_workers=4) as ex:
             f_ads_act = ex.submit(_active_ids, "ads")
             f_adset_act = ex.submit(_active_ids, "adsets")
-            f_ads = ex.submit(_meta_insights, "ad", since, end_s)
-            f_adset_daily = ex.submit(_meta_insights, "adset", since, end_s, "", 1)  # quotidien
+            f_ads = ex.submit(_meta_insights, "ad", since, end_s, "", 1)
+            f_adset_daily = ex.submit(_meta_insights, "adset", since, end_s, ",campaign_id,campaign_name", 1)
             active_ads = f_ads_act.result(); active_adsets = f_adset_act.result()
-            ads = f_ads.result(); adset_daily = f_adset_daily.result()
+            ad_daily = f_ads.result(); adset_daily = f_adset_daily.result()
 
-        # Ads actives : sous ROI plancher, ou actives mais sous-dépensières.
-        # Double garde-fou : l'ad ET son adset doivent être actifs. (effective_status==ACTIVE
-        # d'une ad implique déjà adset+campagne actifs ; on re-vérifie l'adset par sécurité.)
-        low_roi, under_spend = [], []
-        for a in ads:
-            if a.get("ad_id") not in active_ads or a.get("adset_id") not in active_adsets:
+        # ---- Ads : fenêtre courante vs précédente (même longueur), regroupées par adset. ----
+        adagg = {}
+        for x in ad_daily:
+            aid = x.get("ad_id")
+            if not aid:
                 continue
-            roas, spend = _roas(a)
-            impr = int(a.get("impressions", 0) or 0)
-            if spend > 0 and roas < ROI_FLOOR:
-                low_roi.append({"ad": a.get("ad_name"), "adset": a.get("adset_name"),
-                                "spend": round(spend, 2), "roas": round(roas, 2)})
-            if impr > 0 and spend < 30:
-                under_spend.append({"ad": a.get("ad_name"), "adset": a.get("adset_name"),
-                                    "spend": round(spend, 2), "impressions": impr})
+            e = adagg.setdefault(aid, {"ad": x.get("ad_name"), "adset_id": x.get("adset_id"),
+                                       "adset": x.get("adset_name"), "days": {}})
+            e["days"][x.get("date_start")] = (float(x.get("spend", 0) or 0),
+                                              _av(x.get("action_values"), "omni_purchase"))
+        ad_dates = sorted({d for e in adagg.values() for d in e["days"]})
+        cur_w, prev_w = ad_dates[-win:], ad_dates[-2 * win:-win]
 
-        # Adsets : ROAS 3 derniers jours vs 3 précédents, depuis l'UNIQUE appel quotidien.
-        byid = {}
+        def _sv(days, ds):
+            return (sum(days.get(d, (0, 0))[0] for d in ds), sum(days.get(d, (0, 0))[1] for d in ds))
+
+        ads_by_adset, top_ads, ads_to_cut, starved_ads, revived_ads, ignored_ads = {}, [], [], [], [], 0
+        for aid, e in adagg.items():
+            if aid not in active_ads or e["adset_id"] not in active_adsets:
+                continue
+            cs, cv = _sv(e["days"], cur_w)
+            ps, pv = _sv(e["days"], prev_w)
+            if cs < gate:
+                ignored_ads += 1
+                continue
+            cr = cv / cs if cs else 0
+            prr = pv / ps if ps else 0
+            rec = {"ad": e["ad"], "adset": e["adset"], "spend": round(cs, 2), "value": cv,
+                   "roas": round(cr, 2), "prev_spend": round(ps, 2), "prev_roas": round(prr, 2), "adset_note": ""}
+            if cr >= F:
+                rec["kind"] = "winner"
+                top_ads.append({"ad": e["ad"], "adset": e["adset"], "spend": round(cs, 2), "roas": round(cr, 2)})
+                if ps > 0 and cs >= ps * 1.5:   # regagne nettement du budget ET performe
+                    revived_ads.append({"ad": e["ad"], "adset": e["adset"], "spend": round(cs, 2),
+                                        "roas": round(cr, 2), "prev_spend": round(ps, 2), "prev_roas": round(prr, 2)})
+            elif ps >= cs * 1.5 and prr >= F:
+                # Performait quand il était alimenté (dépensait + et ROI OK) -> Meta ne le sert plus : PAS à couper.
+                rec["kind"] = "starved"
+                starved_ads.append({**rec,
+                    "reco": "Performait quand il était alimenté → augmenter le budget de l'adset pour le ré-alimenter, "
+                            "ou segmenter (sortir les ads récents dans un adset dédié) pour ne pas l'étouffer."})
+            else:
+                rec["kind"] = "cut"
+                ads_to_cut.append(rec)
+            ads_by_adset.setdefault(e["adset_id"], []).append(rec)
+
+        # ---- Adsets : ROAS fenêtre courante vs précédente + budget (ABO, sinon repli CBO). ----
+        byid, camp_of, camp_spend = {}, {}, {}
         for x in adset_daily:
             aid = x.get("adset_id")
             if not aid:
                 continue
             e = byid.setdefault(aid, {"name": x.get("adset_name"), "days": {}})
-            e["days"][x.get("date_start")] = (_av(x.get("action_values"), "omni_purchase"),
-                                              float(x.get("spend", 0) or 0))
+            d = x.get("date_start")
+            val = _av(x.get("action_values"), "omni_purchase"); sp = float(x.get("spend", 0) or 0)
+            e["days"][d] = (val, sp)
+            cid = x.get("campaign_id")
+            if cid:
+                camp_of[aid] = cid
+                camp_spend.setdefault(cid, {})[d] = camp_spend.setdefault(cid, {}).get(d, 0) + sp
         all_dates = sorted({d for e in byid.values() for d in e["days"]})
-        recent_d, prior_d = all_dates[-3:], all_dates[-6:-3]
-        declining = []
+        cur_a, prev_a = all_dates[-win:], all_dates[-2 * win:-win]
+
+        def _load_bud(table, key):
+            m = {}
+            try:
+                for r in q(f"""SELECT date, {key}, daily_budget FROM {T(table)}
+                               WHERE date >= DATE_SUB(@e, INTERVAL 8 DAY) AND daily_budget IS NOT NULL""",
+                           [bigquery.ScalarQueryParameter("e", "DATE", end.isoformat())]):
+                    m.setdefault(r[key], {})[r["date"].isoformat()] = r["daily_budget"]
+            except Exception:  # noqa: BLE001
+                pass
+            return m
+
+        adset_bud = _load_bud("meta_adset_budget_daily", "adset_id")
+        camp_bud = _load_bud("meta_campaign_budget_daily", "campaign_id")
+
+        def wr(days, cur, pri):
+            vr = sum(days.get(d, (0, 0))[0] for d in cur); sr = sum(days.get(d, (0, 0))[1] for d in cur)
+            vp = sum(days.get(d, (0, 0))[0] for d in pri); sp = sum(days.get(d, (0, 0))[1] for d in pri)
+            return (vr / sr if sr else 0), (vp / sp if sp else 0), sr, sp
+
+        # ---- Moteur de décision : budgets adsets à moduler + ads à couper / affamés. ----
+        adset_actions, rising = [], []
         for aid, e in byid.items():
             if aid not in active_adsets:
                 continue
-            vr = sum(e["days"].get(d, (0, 0))[0] for d in recent_d)
-            sr = sum(e["days"].get(d, (0, 0))[1] for d in recent_d)
-            vp = sum(e["days"].get(d, (0, 0))[0] for d in prior_d)
-            sp = sum(e["days"].get(d, (0, 0))[1] for d in prior_d)
-            rr = (vr / sr) if sr else 0
-            pr = (vp / sp) if sp else 0
-            if pr > 0 and rr < pr:
-                drop = (rr - pr) / pr * 100
-                if drop <= -20:
-                    declining.append({"adset": e["name"], "roas_3d": round(rr, 2),
-                                      "roas_prev": round(pr, 2), "drop_pct": round(drop, 1)})
-        declining.sort(key=lambda x: x["drop_pct"])
-        low_roi.sort(key=lambda x: x["spend"], reverse=True)
-        result = {"ok": True, "roi_floor": ROI_FLOOR,
-                  "low_roi_ads": low_roi[:25], "under_spend_ads": under_spend[:25],
-                  "declining_adsets": declining[:25]}
-        _ALERTS_CACHE["ts"], _ALERTS_CACHE["data"] = time.time(), result
+            rr, pr, sr, _ = wr(e["days"], cur_a, prev_a)
+            abud = adset_bud.get(aid, {})
+            if abud:
+                sig = _bsig(abud, lambda d, ee=e: ee["days"].get(d, (0, 0))[1], end, cbo=False)
+            else:
+                cid = camp_of.get(aid)
+                sig = _bsig(camp_bud.get(cid, {}), lambda d, c=camp_spend.get(cid, {}): c.get(d, 0), end, cbo=True)
+            util = sig["util_3d"]; status = sig["status"]
+
+            ads = ads_by_adset.get(aid, [])
+            cut = [a for a in ads if a["kind"] == "cut"]         # vrais ads à couper (pas les affamés)
+            winners = [a for a in ads if a["kind"] == "winner"]
+            starved = [a for a in ads if a["kind"] == "starved"]
+            vr = rr * sr
+            s_excl = sr - sum(a["spend"] for a in cut)
+            v_excl = vr - sum(a["value"] for a in cut)
+            roas_excl = round(v_excl / s_excl, 2) if s_excl > 0.5 else None
+            saturated = (status == "overspend") or (util is not None and util >= 90)
+            under = (status == "underspend") or (util is not None and util <= 60)
+
+            chg = ((rr - pr) / pr * 100) if pr > 0 else None
+            if chg is not None and chg >= 20 and sr >= gate and rr >= F:
+                rising.append({"adset": e["name"], "roas": round(rr, 2), "roas_prev": round(pr, 2),
+                               "rise_pct": round(chg, 1), "budget": sig})
+
+            action = reason = None
+            if sr >= gate:
+                if rr < F:
+                    if cut and roas_excl is not None and roas_excl >= F:
+                        action = "CUT_DRAINERS"
+                        reason = (f"ROAS {rr:.2f} plombé par {len(cut)} ad(s) faible(s). "
+                                  f"Sans eux ≈ {roas_excl:.2f} (≥ {F:.0f}) : couper, garder le budget.")
+                    else:
+                        action = "LOWER"
+                        reason = f"ROAS {rr:.2f}, aucun ad fautif isolé → réduire le budget ~20 % ou mettre en pause."
+                else:
+                    if cut and roas_excl is not None and roas_excl > rr + 0.1:
+                        action = "CUT_THEN_SCALE"
+                        reason = (f"ROAS {rr:.2f} bridé par {len(cut)} ad(s) faible(s) (sans eux ≈ {roas_excl:.2f}) : "
+                                  "couper, puis envisager de scaler.")
+                    elif starved:
+                        action = "FEED_STARVED"
+                        reason = (f"ROAS {rr:.2f} OK mais {len(starved)} ad(s) qui performaient ne sont plus alimentés. "
+                                  "Augmenter le budget de l'adset, ou segmenter pour les relancer.")
+                    elif saturated and winners:
+                        action = "SCALE"
+                        reason = (f"ROAS {rr:.2f} ≥ {F:.0f} et budget saturé"
+                                  f"{f' (util {util}%)' if util is not None else ''} → augmenter ~20 % / 3-4 j.")
+                    elif under:
+                        action = "REVIEW_UNDER"
+                        reason = (f"ROAS {rr:.2f} bon mais sous-délivré"
+                                  f"{f' (util {util}%)' if util is not None else ''} → budget trop haut ou ciblage trop étroit.")
+            if action:
+                adset_actions.append({
+                    "adset": e["name"], "action": action, "reason": reason,
+                    "roas": round(rr, 2), "roas_prev": round(pr, 2), "spend": round(sr, 2), "util_3d": util,
+                    "budget_now": sig["budget_now"], "budget_note": sig["note"],
+                    "drainers": [a["ad"] for a in cut][:4], "winners": [a["ad"] for a in winners][:4],
+                    "starved": [a["ad"] for a in starved][:4]})
+
+            for a in cut:   # impact d'un retrait, écrit sur l'objet partagé avec ads_to_cut
+                a["adset_note"] = (f"l'adset repasse à ≈ {roas_excl:.2f} sans cet ad"
+                                   if (roas_excl is not None and rr < F and winners)
+                                   else f"draine le budget (ROAS adset {rr:.2f})")
+
+        order = {"LOWER": 0, "CUT_DRAINERS": 1, "FEED_STARVED": 2, "CUT_THEN_SCALE": 3, "SCALE": 4, "REVIEW_UNDER": 5}
+        adset_actions.sort(key=lambda x: (order.get(x["action"], 9), -x["spend"]))
+        ads_to_cut.sort(key=lambda x: -x["spend"])
+        starved_ads.sort(key=lambda x: -x["prev_spend"])
+        revived_ads.sort(key=lambda x: -x["spend"])
+        rising.sort(key=lambda x: -x["rise_pct"])
+        top_ads.sort(key=lambda x: -x["roas"])
+        result = {"ok": True, "roi_floor": ROI_FLOOR, "window": win, "gate": gate,
+                  "adset_actions": adset_actions[:30], "ads_to_cut": ads_to_cut[:30],
+                  "starved_ads": starved_ads[:20], "revived_ads": revived_ads[:20],
+                  "rising_adsets": rising[:12], "top_ads": top_ads[:12], "ignored_ads": ignored_ads}
+        _ALERTS_CACHE[win] = {"ts": time.time(), "data": result}
         return jsonify(result)
     except Exception as e:  # noqa: BLE001
         return jsonify({"ok": False, "error": str(e)}), 200
@@ -598,18 +1160,23 @@ def api_health():
         UNION ALL SELECT 'meta',     MIN(date), MAX(date), COUNT(DISTINCT date) FROM {T('meta_daily')}
         UNION ALL SELECT 'google',   MIN(date), MAX(date), COUNT(DISTINCT date) FROM {T('google_daily')}
         UNION ALL SELECT 'sessions', MIN(date), MAX(date), COUNT(DISTINCT date) FROM {T('shopify_traffic_daily')}
+        UNION ALL SELECT 'customers', MIN(period_start), MAX(period_start), COUNT(DISTINCT period_start)
+                  FROM {T('customers_period')} WHERE scope = 'web' AND grain = 'day'
     """)
     by = {r["k"]: r for r in raw}
-    spec = [("orders", "CA / Commandes", 1), ("meta", "Dépense Meta", 1),
-            ("google", "Dépense Google", 1), ("sessions", "Sessions", 2)]
+    # tolerate = retard toléré (jours) ; check_gaps = signaler les trous d'historique.
+    # Clients : pas de check_gaps (un jour sans commande = pas de ligne, ce n'est pas un trou).
+    spec = [("orders", "CA / Commandes", 1, True), ("meta", "Dépense Meta", 1, True),
+            ("google", "Dépense Google", 1, True), ("sessions", "Sessions", 2, True),
+            ("customers", "Clients", 1, False)]
 
-    def info(k, label, tolerate):
+    def info(k, label, tolerate, check_gaps=True):
         r = by.get(k, {})
         mx = r.get("mx")
         if mx is None:
             return {"label": label, "last": None, "days_behind": None, "gaps": None, "status": "empty"}
         days_behind = max(0, (end - mx).days)
-        gaps = (mx - r["mn"]).days + 1 - r["nd"]
+        gaps = (mx - r["mn"]).days + 1 - r["nd"] if check_gaps else 0
         status = "ok"
         if days_behind > tolerate or gaps > 0:
             status = "warn"
@@ -624,8 +1191,8 @@ def api_health():
     sess_behind = max(0, (end - lr).days) if lr else None
 
     sources = []
-    for k, label, tol in spec:
-        s = info(k, label, tol)
+    for k, label, tol, cg in spec:
+        s = info(k, label, tol, cg)
         if k == "sessions":
             if sess_behind is None or sess_behind >= 1:
                 s["status"] = "stale"

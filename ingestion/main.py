@@ -21,8 +21,10 @@ from __future__ import annotations
 import os
 import traceback
 
-from ingestion import (shopify_orders, shopify_traffic, meta_ads, google_ads, google_asset_groups,
-                       google_sheet, ga4_traffic, sessions_sheet, bq_setup, bq_io)
+from ingestion import (shopify_orders, shopify_customers, customers_metrics,
+                       shopify_traffic, meta_ads, meta_adset_budgets, google_ads, google_asset_groups,
+                       google_sheet, ga4_traffic, ga4_cro, shopify_inventory, sessions_sheet,
+                       bq_setup, bq_io)
 
 SHOPIFY_REFRESH_DAYS = int(os.environ.get("SHOPIFY_REFRESH_DAYS", "40"))
 ADS_REFRESH_DAYS     = int(os.environ.get("ADS_REFRESH_DAYS", "14"))
@@ -34,6 +36,7 @@ def daily_refresh() -> dict:
     # Sources rapides d'abord (ads), Shopify (lent, ~25 min) en dernier.
     for name, fn in [
         ("meta",            lambda: meta_ads.refresh(ADS_REFRESH_DAYS)),
+        ("meta_budgets",    lambda: meta_adset_budgets.refresh()),
         # Google Ads via l'API officielle (GAQL) — accès Basic obtenu.
         # (l'ancienne lecture via Sheet `google_sheet` reste dispo en secours si besoin)
         ("google",          lambda: google_ads.refresh(ADS_REFRESH_DAYS)),
@@ -41,7 +44,11 @@ def daily_refresh() -> dict:
         # Sessions via GA4 (source autonome). Fenêtre 3 j seulement -> l'historique plus ancien
         # reste figé en base = continuité conservée même après la rétention 14 mois de GA4.
         ("sessions",        lambda: ga4_traffic.refresh(3)),
+        ("cro_ga4",         lambda: ga4_cro.refresh(int(os.environ.get("CRO_REFRESH_DAYS", "35")))),
+        ("inventory",       lambda: shopify_inventory.refresh()),
         ("shopify_orders",  lambda: shopify_orders.refresh(SHOPIFY_REFRESH_DAYS)),
+        ("customers",       lambda: shopify_customers.refresh(45)),
+        ("customers_metrics", lambda: customers_metrics.refresh()),
     ]:
         try:
             results[name] = fn()
