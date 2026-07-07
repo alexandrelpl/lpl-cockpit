@@ -45,6 +45,12 @@ BUDGET_SHEET_ID  = os.environ.get("BUDGET_SHEET_ID", "")
 BUDGET_SHEET_TAB = os.environ.get("BUDGET_SHEET_TAB", "Budget 2026")
 RUN_REGION       = os.environ.get("CLOUD_RUN_REGION", "europe-west1")
 SESSIONS_JOB     = os.environ.get("SESSIONS_JOB", "lpl-cockpit-sessions")
+# Segment « NEDERLAND TEST » : campagnes dont le nom contient « NL » (mot entier),
+# isolées du principal à partir du 03/07/2026 (avant : rien ne change). Même règle que
+# la vue cockpit_daily, pour cohérence entre onglets.
+NL_START = "2026-07-03"
+NL_PRED  = (r"(REGEXP_CONTAINS(campaign_name, r'(^|[^A-Za-z])NL([^A-Za-z]|$)')"
+            f" AND date >= DATE '{NL_START}')")
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
@@ -273,11 +279,14 @@ def api_periods():
         return ((a - b) * 100) if (a is not None and b is not None) else None
 
     def block(label, is_current, cur, prev):
+        cur_atv = (cur["ca"] / cur["orders"]) if cur["orders"] else None
+        prev_atv = (prev["ca"] / prev["orders"]) if prev["orders"] else None
         return {"label": label, "current": is_current,
                 "sessions": cur["sessions"], "sessions_cmp": pct(cur["sessions"], prev["sessions"]),
                 "cvr": cur["cvr"], "cvr_cmp": pts(cur["cvr"], prev["cvr"]),
                 "orders": cur["orders"], "orders_cmp": pct(cur["orders"], prev["orders"]),
                 "ca": cur["ca"], "ca_cmp": pct(cur["ca"], prev["ca"]),
+                "atv": cur_atv, "atv_cmp": pct(cur_atv, prev_atv),
                 "spend": cur["spend"], "spend_cmp": pct(cur["spend"], prev["spend"]),
                 "cos": cur["cos"], "cos_cmp": pts(cur["cos"], prev["cos"])}
 
@@ -312,33 +321,42 @@ def api_periods():
 @bq_cache()
 def api_meta():
     days = min(int(request.args.get("days", 7)), 90)
-    daily = q(
-        f"""SELECT date, SUM(spend) spend, SUM(purchase_value) value, SUM(purchases) purchases,
-                   SUM(impressions) impressions, SUM(clicks) clicks
-            FROM {T('meta_daily')}
-            WHERE campaign_id IS NOT NULL
-              AND date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL @d DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
-            GROUP BY date ORDER BY date""",
-        [bigquery.ScalarQueryParameter("d", "INT64", days)],
-    )
-    for r in daily:
-        r["date"] = r["date"].isoformat()
-        r["roas"] = (r["value"] / r["spend"]) if r["spend"] else None
-        r["cpa"] = (r["spend"] / r["purchases"]) if r["purchases"] else None
-        r["ctr"] = (r["clicks"] / r["impressions"]) if r["impressions"] else None
-    camp = q(
-        f"""SELECT campaign_name,
-                   SUM(spend) spend, SUM(purchases) purchases,
-                   SUM(purchase_value) value, SUM(impressions) impressions
-            FROM {T('meta_daily')}
-            WHERE campaign_id IS NOT NULL
-              AND date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL @d DAY) AND DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
-            GROUP BY campaign_name HAVING spend > 0 ORDER BY spend DESC""",
-        [bigquery.ScalarQueryParameter("d", "INT64", days)],
-    )
-    for r in camp:
-        r["roas"] = (r["value"] / r["spend"]) if r["spend"] else 0
-        r["cpa"] = (r["spend"] / r["purchases"]) if r["purchases"] else 0
+    p = [bigquery.ScalarQueryParameter("d", "INT64", days)]
+    win = ("campaign_id IS NOT NULL AND date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL @d DAY) "
+           "AND DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)")
+
+    def _daily(extra):
+        rows = q(
+            f"""SELECT date, SUM(spend) spend, SUM(purchase_value) value, SUM(purchases) purchases,
+                       SUM(impressions) impressions, SUM(clicks) clicks
+                FROM {T('meta_daily')}
+                WHERE {win} AND {extra}
+                GROUP BY date ORDER BY date""", p)
+        for r in rows:
+            r["date"] = r["date"].isoformat()
+            r["roas"] = (r["value"] / r["spend"]) if r["spend"] else None
+            r["cpa"] = (r["spend"] / r["purchases"]) if r["purchases"] else None
+            r["ctr"] = (r["clicks"] / r["impressions"]) if r["impressions"] else None
+        return rows
+
+    def _camp(extra):
+        rows = q(
+            f"""SELECT campaign_name, SUM(spend) spend, SUM(purchases) purchases,
+                       SUM(purchase_value) value, SUM(impressions) impressions
+                FROM {T('meta_daily')}
+                WHERE {win} AND {extra}
+                GROUP BY campaign_name HAVING spend > 0 ORDER BY spend DESC""", p)
+        for r in rows:
+            r["roas"] = (r["value"] / r["spend"]) if r["spend"] else 0
+            r["cpa"] = (r["spend"] / r["purchases"]) if r["purchases"] else 0
+        return rows
+
+    # Principal = hors NL (à partir du 03/07) ; NL = segment isolé.
+    daily = _daily(f"NOT {NL_PRED}")
+    camp = _camp(f"NOT {NL_PRED}")
+    nl_daily = _daily(NL_PRED)
+    nl_camp = _camp(NL_PRED)
+
     def trM(field):
         return {"d3": _trend(daily, field, 3), "d7": _trend(daily, field, 7)}
     return jsonify({
@@ -347,6 +365,8 @@ def api_meta():
         "trends": {"spend": trM("spend"), "impressions": trM("impressions"), "ctr": trM("ctr"),
                    "purchases": trM("purchases"), "value": trM("value"), "cpa": trM("cpa"),
                    "roas": trM("roas")},
+        "nl": {"daily": nl_daily, "campaigns": nl_camp,
+               "roas3": _roas_window(nl_daily, "spend", "value", 3)},
     })
 
 
@@ -360,28 +380,43 @@ def api_google():
            f"AND DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)")
     p = [bigquery.ScalarQueryParameter("d", "INT64", days)]
 
-    daily = q(f"""SELECT date, SUM(cost) cost, SUM(conversion_value) value, SUM(conversions) conv
-                  FROM {T('google_daily')} WHERE {win} GROUP BY date ORDER BY date""", p)
-    for r in daily:
-        r["date"] = r["date"].isoformat()
-        r["roas"] = (r["value"] / r["cost"]) if r["cost"] else None
-        r["cpa"] = (r["cost"] / r["conv"]) if r["conv"] else None
+    def _daily(extra):
+        rows = q(f"""SELECT date, SUM(cost) cost, SUM(conversion_value) value, SUM(conversions) conv
+                     FROM {T('google_daily')} WHERE {win} AND {extra}
+                     GROUP BY date ORDER BY date""", p)
+        for r in rows:
+            r["date"] = r["date"].isoformat()
+            r["roas"] = (r["value"] / r["cost"]) if r["cost"] else None
+            r["cpa"] = (r["cost"] / r["conv"]) if r["conv"] else None
+        return rows
 
-    camp = q(f"""SELECT campaign_name, campaign_type, SUM(cost) cost, SUM(conversions) conv,
-                        SUM(conversion_value) value, SUM(impressions) impressions
-                 FROM {T('google_daily')} WHERE {win}
-                 GROUP BY campaign_name, campaign_type HAVING cost > 0 ORDER BY cost DESC""", p)
+    def _camp(extra):
+        rows = q(f"""SELECT campaign_name, campaign_type, SUM(cost) cost, SUM(conversions) conv,
+                            SUM(conversion_value) value, SUM(impressions) impressions
+                     FROM {T('google_daily')} WHERE {win} AND {extra}
+                     GROUP BY campaign_name, campaign_type HAVING cost > 0 ORDER BY cost DESC""", p)
+        for r in rows:
+            r["roas"] = (r["value"] / r["cost"]) if r["cost"] else 0
+            r["cpa"] = (r["cost"] / r["conv"]) if r["conv"] else 0
+        return rows
+
+    daily = _daily(f"NOT {NL_PRED}")
+    camp = _camp(f"NOT {NL_PRED}")
+    nl_daily = _daily(NL_PRED)
+    nl_camp = _camp(NL_PRED)
+
     by_type = q(f"""SELECT campaign_type, SUM(cost) cost, SUM(conversions) conv,
                            SUM(conversion_value) value
-                    FROM {T('google_daily')} WHERE {win}
+                    FROM {T('google_daily')} WHERE {win} AND NOT {NL_PRED}
                     GROUP BY campaign_type HAVING cost > 0 ORDER BY cost DESC""", p)
-    for r in camp + by_type:
+    for r in by_type:
         r["roas"] = (r["value"] / r["cost"]) if r["cost"] else 0
         r["cpa"] = (r["cost"] / r["conv"]) if r["conv"] else 0
 
     m = q(f"""SELECT COALESCE(SUM(cost),0) cost, COALESCE(SUM(conversions),0) conv,
                      COALESCE(SUM(conversion_value),0) value FROM {T('google_daily')}
-              WHERE date >= DATE_TRUNC(CURRENT_DATE(), MONTH) AND date < CURRENT_DATE()""")[0]
+              WHERE date >= DATE_TRUNC(CURRENT_DATE(), MONTH) AND date < CURRENT_DATE()
+                AND NOT {NL_PRED}""")[0]
     mtd = {"cost": m["cost"], "conv": m["conv"], "value": m["value"],
            "roas": (m["value"] / m["cost"]) if m["cost"] else None,
            "cpa": (m["cost"] / m["conv"]) if m["conv"] else None}
@@ -390,7 +425,9 @@ def api_google():
                     "by_type": by_type, "mtd": mtd,
                     "roas3": _roas_window(daily, "cost", "value", 3),
                     "trends": {"roas_3d": _trend(daily, "roas", 3),
-                               "roas_7d": _trend(daily, "roas", 7)}})
+                               "roas_7d": _trend(daily, "roas", 7)},
+                    "nl": {"daily": nl_daily, "campaigns": nl_camp,
+                           "roas3": _roas_window(nl_daily, "cost", "value", 3)}})
 
 
 @app.route("/api/google/asset-groups")
@@ -778,6 +815,175 @@ def api_acquisition():
                      ORDER BY period_start DESC LIMIT 6""")
         out["ropo"] = list(reversed(ropo))
         return jsonify({"ok": True, **out})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : mix ventes montures par gamme de prix (unités) ----
+@app.route("/api/price-mix")
+@login_required
+@bq_cache()
+def api_price_mix():
+    try:
+        TIERS = ["29", "49", "69", "89", "autre"]
+        end = date.today() - timedelta(days=1)
+        grains = {"day": ("%Y-%m-%d", 30, "AND date < CURRENT_DATE()"),
+                  "week": ("%G-W%V", 12, ""), "month": ("%Y-%m", 12, "")}
+        out = {}
+        for g, (fmt, lim, cut) in grains.items():
+            rows = q(f"""SELECT FORMAT_DATE('{fmt}', date) period, MIN(date) ps, scope, tier,
+                                SUM(units) units
+                         FROM {T('frame_price_mix_daily')}
+                         WHERE date <= @end {cut}
+                         GROUP BY period, scope, tier""",
+                     [bigquery.ScalarQueryParameter("end", "DATE", end.isoformat())])
+            byp = {}
+            for r in rows:
+                p = byp.setdefault(r["period"], {"period": r["period"], "ps": r["ps"],
+                    "optique": {t: 0 for t in TIERS}, "solaire": {t: 0 for t in TIERS}})
+                sc = r["scope"] if r["scope"] in ("optique", "solaire") else None
+                if sc and r["tier"] in p[sc]:
+                    p[sc][r["tier"]] += int(r["units"])
+            periods = sorted(byp.values(), key=lambda x: x["ps"])[-lim:]
+            for p in periods:
+                p["global"] = {t: p["optique"][t] + p["solaire"][t] for t in TIERS}
+                for sc in ("optique", "solaire", "global"):
+                    p[sc + "_total"] = sum(p[sc].values())
+                p.pop("ps", None)
+            out[g] = periods
+        return jsonify({"ok": True, "tiers": TIERS, **out})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : Comptoir (Solaires vs Optiques, unités, strict product_type) ----
+@app.route("/api/comptoir")
+@login_required
+@bq_cache()
+def api_comptoir():
+    try:
+        end = date.today() - timedelta(days=1)
+        grains = {"day": ("%Y-%m-%d", 30, "AND date < CURRENT_DATE()"),
+                  "week": ("%G-W%V", 12, ""), "month": ("%Y-%m", 12, "")}
+        out = {}
+        for g, (fmt, lim, cut) in grains.items():
+            rows = q(f"""SELECT FORMAT_DATE('{fmt}', date) period, MIN(date) ps, type, SUM(units) units
+                         FROM {T('frame_type_daily')}
+                         WHERE date <= @end {cut}
+                         GROUP BY period, type""",
+                     [bigquery.ScalarQueryParameter("end", "DATE", end.isoformat())])
+            byp = {}
+            for r in rows:
+                p = byp.setdefault(r["period"], {"period": r["period"], "ps": r["ps"],
+                                                 "solaire": 0, "optique": 0})
+                if r["type"] in ("solaire", "optique"):
+                    p[r["type"]] += int(r["units"])
+            periods = sorted(byp.values(), key=lambda x: x["ps"])[-lim:]
+            for p in periods:
+                p["total"] = p["solaire"] + p["optique"]
+                p.pop("ps", None)
+            out[g] = periods
+        return jsonify({"ok": True, **out})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : estimation genre (H/F/U) par prénom, commandes web ----
+@app.route("/api/gender")
+@login_required
+@bq_cache()
+def api_gender():
+    try:
+        end = date.today() - timedelta(days=1)
+        grains = {"day": ("%Y-%m-%d", 30, "AND date < CURRENT_DATE()"),
+                  "week": ("%G-W%V", 12, ""), "month": ("%Y-%m", 12, "")}
+        out = {}
+        for g, (fmt, lim, cut) in grains.items():
+            rows = q(f"""SELECT FORMAT_DATE('{fmt}', date) period, MIN(date) ps, gender, SUM(units) units
+                         FROM {T('gender_daily')}
+                         WHERE date <= @end {cut}
+                         GROUP BY period, gender""",
+                     [bigquery.ScalarQueryParameter("end", "DATE", end.isoformat())])
+            byp = {}
+            for r in rows:
+                p = byp.setdefault(r["period"], {"period": r["period"], "ps": r["ps"],
+                                                 "H": 0, "F": 0, "U": 0})
+                if r["gender"] in ("H", "F", "U"):
+                    p[r["gender"]] += int(r["units"])
+            periods = sorted(byp.values(), key=lambda x: x["ps"])[-lim:]
+            for p in periods:
+                p["total"] = p["H"] + p["F"] + p["U"]
+                p["known"] = p["H"] + p["F"]
+                p.pop("ps", None)
+            out[g] = periods
+        return jsonify({"ok": True, **out})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : segment NEDERLAND TEST (hors du COS principal, depuis le 03/07) ----
+@app.route("/api/nl")
+@login_required
+@bq_cache()
+def api_nl():
+    try:
+        end = date.today() - timedelta(days=1)
+        rows = q(f"""SELECT c.date, c.ca_shopify_nl ca, c.orders_nl orders,
+                            c.meta_spend_nl meta, c.google_spend_nl google, c.ad_spend_nl spend,
+                            nl.sessions sessions
+                     FROM {T('cockpit_daily')} c
+                     LEFT JOIN {T('ga4_nl_daily')} nl USING (date)
+                     WHERE c.date >= DATE '2026-07-03' AND c.date <= @end
+                     ORDER BY c.date""",
+                 [bigquery.ScalarQueryParameter("end", "DATE", end.isoformat())])
+        grains = {"day": {}, "week": {}, "month": {}}
+        starts = {"day": {}, "week": {}, "month": {}}
+        for r in rows:
+            d = r["date"]
+            keys = {"day": d.isoformat(), "week": d.strftime("%G-W%V"), "month": d.strftime("%Y-%m")}
+            for gr, k in keys.items():
+                a = grains[gr].setdefault(k, {"period": k, "ca": 0.0, "orders": 0, "sessions": 0,
+                                              "meta": 0.0, "google": 0.0, "spend": 0.0})
+                a["ca"] += r["ca"] or 0; a["orders"] += r["orders"] or 0; a["sessions"] += r["sessions"] or 0
+                a["meta"] += r["meta"] or 0; a["google"] += r["google"] or 0; a["spend"] += r["spend"] or 0
+                starts[gr][k] = min(starts[gr].get(k, d), d)
+        out = {}
+        lim = {"day": 31, "week": 12, "month": 12}
+        for gr in ("day", "week", "month"):
+            items = sorted(grains[gr].values(), key=lambda x: starts[gr][x["period"]])[-lim[gr]:]
+            for a in items:
+                a["atv"] = round(a["ca"] / a["orders"], 2) if a["orders"] else None
+                a["cvr"] = round(a["orders"] / a["sessions"], 4) if a["sessions"] else None
+                a["cos"] = round(a["spend"] / a["ca"], 4) if a["ca"] else None
+                a["roas"] = round(a["ca"] / a["spend"], 2) if a["spend"] else None
+                for k2 in ("ca", "meta", "google", "spend"):
+                    a[k2] = round(a[k2], 2)
+            out[gr] = items
+        return jsonify({"ok": True, **out})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : conso Claude (module genre) -> footnote coût ----
+@app.route("/api/claude-usage")
+@login_required
+@bq_cache(ttl=3600)
+def api_claude_usage():
+    IN_USD, OUT_USD = 1.0, 5.0   # Haiku 4.5 : $1 / $5 par million de tokens
+    eurusd = float(os.environ.get("EUR_PER_USD", "0.92"))
+
+    def cost(it, ot):
+        return round((it / 1e6 * IN_USD + ot / 1e6 * OUT_USD) * eurusd, 2)
+    try:
+        def agg(where):
+            r = q(f"""SELECT COALESCE(SUM(input_tokens),0) it, COALESCE(SUM(output_tokens),0) ot,
+                             COALESCE(SUM(names),0) n
+                      FROM {T('claude_usage')} {where}""")[0]
+            return {"names": int(r["n"]), "input_tokens": int(r["it"]), "output_tokens": int(r["ot"]),
+                    "cost_eur": cost(r["it"], r["ot"])}
+        return jsonify({"ok": True,
+                        "last30": agg("WHERE ts >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)"),
+                        "all": agg("")})
     except Exception as e:  # noqa: BLE001
         return jsonify({"ok": False, "error": str(e)}), 200
 

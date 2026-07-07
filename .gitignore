@@ -8,3 +8,4 @@ credentials.json
 service_account*.json
 google-ads.yaml
 *.secret
+.DS_Store

@@ -23,7 +23,16 @@
   header .who{font-size:.78rem;color:var(--muted)}
   header a{font-size:.78rem;color:var(--accent);text-decoration:none}
   select{font-size:.82rem;padding:5px 8px;border:1px solid #d1d5db;border-radius:7px;background:#fff}
-  .wrap{padding:20px 22px;max-width:1200px;margin:0 auto}
+  .wrap{padding:20px 22px;max-width:1280px;margin:0 auto}
+  /* ---- Fil rouge : rail de chapitres à gauche ---- */
+  .cols{display:flex;gap:26px;align-items:flex-start}
+  .vbody{flex:1;min-width:0}
+  .chaprail{position:sticky;top:14px;flex:0 0 178px;align-self:flex-start;max-height:calc(100vh - 28px);overflow-y:auto;border-right:1px solid var(--line);padding:2px 8px 2px 0}
+  .chaprail .crttl{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#b3b9c2;margin:4px 9px 8px}
+  .chaprail a{display:block;font-size:.77rem;color:#6b7280;text-decoration:none;padding:6px 10px;border-radius:7px;border-left:2px solid transparent;line-height:1.25;margin-bottom:1px;transition:background .12s,color .12s}
+  .chaprail a:hover{background:#f1f3f6;color:var(--ink)}
+  .chaprail a.on{color:var(--accent-d);background:#eef6f8;border-left-color:var(--accent);font-weight:600}
+  @media(max-width:980px){.cols{display:block}.chaprail{display:none}}
   .health{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:16px}
   .health .ht{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
   .hsrc{font-size:.76rem;color:#374151;display:inline-flex;align-items:center;gap:6px}
@@ -48,6 +57,10 @@
   .psearch:focus{outline:none;border-color:var(--accent)}
   .subcap{font-size:.72rem;color:#9aa1ab;margin:-2px 0 12px}
   .clbl{font-size:.78rem;font-weight:700;color:var(--ink);margin:0 0 7px}
+  .clbl.sep{border-top:1px solid var(--line);padding-top:16px;margin-top:20px}
+  .grainbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;
+    background:var(--bg);padding:10px 0 9px;margin:0 0 4px;border-bottom:1px solid var(--line)}
+  .grainbar .glbl{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .ctoggle{display:inline-flex;gap:4px;background:#eaedf1;border:1px solid #dde1e7;border-radius:9px;padding:3px;margin:0 0 10px}
   .ctbtn{padding:5px 12px;font-size:.74rem;font-weight:600;color:#5b6472;cursor:pointer;border:none;background:none;border-radius:6px}
   .ctbtn.on{background:var(--accent);color:#fff}
@@ -94,8 +107,8 @@
   .dot-g{background:var(--good)}
   .dot-r{background:#e0894b}
   .grad{display:inline-block;width:90px;height:11px;border-radius:3px;vertical-align:middle;margin:0 5px;background:linear-gradient(90deg,#FCE4EA,#FCEFD9,#F7F8DE,#E2F7DF,#DBF6F2,#DEF0FC)}
-  #cos-table table,#cos-weekly table,#cos-monthly table{table-layout:fixed;width:100%}
-  #cos-table th,#cos-table td,#cos-weekly th,#cos-weekly td,#cos-monthly th,#cos-monthly td{overflow:hidden;text-overflow:ellipsis}
+  #perf-body table{table-layout:fixed;width:100%}
+  #perf-body th,#perf-body td{overflow:hidden;text-overflow:ellipsis}
   .cmp{font-size:.64rem;line-height:1.15;margin-top:1px}
   .cmp-up{color:var(--good)}.cmp-down{color:var(--bad)}.cmp-flat{color:#9ca3af}
   .pill{font-size:.66rem;padding:1px 7px;border-radius:10px;background:var(--turq);color:#1f6b78;font-weight:600}
@@ -134,8 +147,8 @@
     .panel{padding:12px;overflow-x:auto}
     table{font-size:.78rem}
     th,td{padding:6px 8px;white-space:nowrap}
-    #cos-table table,#cos-weekly table,#cos-monthly table{table-layout:auto;width:auto;min-width:100%}
-    #cos-table th,#cos-table td,#cos-weekly th,#cos-weekly td,#cos-monthly th,#cos-monthly td{overflow:visible;text-overflow:clip}
+    #perf-body table{table-layout:auto;width:auto;min-width:100%}
+    #perf-body th,#perf-body td{overflow:visible;text-overflow:clip}
     .panel h2.bigttl{font-size:1.05rem}
   }
 </style>
@@ -168,34 +181,58 @@
     </div>
   </div>
 
+  <div class="cols">
+  <nav id="chaprail" class="chaprail" aria-label="Chapitres de la page"></nav>
+  <div class="vbody">
   <div class="view active" id="view-cos">
-    <div class="seclabel">Indicateurs du mois en cours · MTD (jusqu'à hier)</div>
+    <div class="grainbar" id="grainbar">
+      <span class="glbl">Vue par</span>
+      <div class="ctoggle" id="grain-global">
+        <button class="ctbtn on" data-g="day">Jour</button>
+        <button class="ctbtn" data-g="week">Semaine</button>
+        <button class="ctbtn" data-g="month">Mois</button>
+      </div>
+    </div>
+    <div class="seclabel" data-chap="Indicateurs">Indicateurs du mois en cours · MTD (jusqu'à hier)</div>
     <div class="kpis" id="cos-kpis"></div>
     <div class="panel" id="cos-targets"><h2>Objectif du mois &amp; projection</h2><div class="loading">Chargement…</div></div>
-    <div class="seclabel">Évolution quotidienne</div>
+    <div class="seclabel" data-chap="Évolution">Évolution quotidienne</div>
     <div class="panel"><h2>Dépense pub vs CA Shopify &amp; COS</h2><div class="chartbox"><canvas id="cos-chart"></canvas></div></div>
-    <div class="seclabel">Détails comparés</div>
-    <div class="subtabs" id="cos-subtabs">
-      <button class="subtab active" data-sub="daily">DAILY</button>
-      <button class="subtab" data-sub="weekly">WEEKLY</button>
-      <button class="subtab" data-sub="monthly">MONTHLY</button>
+    <div class="seclabel" data-chap="NL test">🇳🇱 Nederland test (hors COS principal, depuis le 03/07)</div>
+    <div class="panel" id="nl-block">
+      <div class="subcap" style="margin:0 0 10px">Campagnes Meta/Google « NL » + CA livré aux Pays-Bas. Ces coûts et revenus sont <b>retirés</b> du tableau Performance &amp; COS principal ci-dessous.</div>
+      <div id="nl-body" class="loading">Chargement…</div>
     </div>
-    <div class="panel subview active" id="sub-daily"><div class="subcap">Période sélectionnée (sélecteur en haut à droite)</div>
-      <div class="clbl">📊 Performance &amp; COS</div><div id="cos-table" class="loading">Chargement…</div>
-      <div class="clbl" style="margin-top:18px">👥 Clients · nouveaux vs fidèles</div><div id="cust-day" class="loading">Chargement…</div>
-      <div class="clbl" style="margin-top:18px">🎯 Acquisition web · coût d'un nouveau client en ligne</div><div id="acq-day" class="loading">Chargement…</div></div>
-    <div class="panel subview" id="sub-weekly"><div class="subcap">8 dernières semaines · vs semaine précédente</div>
-      <div class="clbl">📊 Performance &amp; COS</div><div id="cos-weekly" class="loading">Chargement…</div>
-      <div class="clbl" style="margin-top:18px">👥 Clients · nouveaux vs fidèles</div><div id="cust-week" class="loading">Chargement…</div>
-      <div class="clbl" style="margin-top:18px">🎯 Acquisition web · coût d'un nouveau client en ligne</div><div id="acq-week" class="loading">Chargement…</div></div>
-    <div class="panel subview" id="sub-monthly"><div class="subcap">Depuis janvier · vs N-1</div>
-      <div class="clbl">📊 Performance &amp; COS</div><div id="cos-monthly" class="loading">Chargement…</div>
-      <div class="clbl" style="margin-top:18px">👥 Clients · nouveaux vs fidèles</div><div id="cust-month" class="loading">Chargement…</div>
-      <div class="clbl" style="margin-top:18px">🎯 Acquisition web · coût d'un nouveau client en ligne</div><div id="acq-month" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="Performance">📊 Performance &amp; COS</div>
+    <div class="panel" id="perf-block"><div id="perf-body" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="Clients">👥 Clients · nouveaux vs fidèles</div>
+    <div class="panel" id="cust-block"><div id="cust-body" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="Acquisition">🎯 Acquisition web · coût d'un nouveau client <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(tous canaux)</span></div>
+    <div class="panel" id="acq-block"><div id="acq-body" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="ROPO">Omnicanal · effet ROPO (mensuel, tous canaux)</div>
+    <div class="panel" id="ropo-block"><div class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="Gammes">👓 Gammes de prix des montures</div>
+    <div class="panel" id="mix-block">
+      <div class="subcap" style="margin:0 0 10px">Répartition des ventes de montures par gamme de prix, en <b>unités</b> (tous canaux).</div>
+      <div id="mix-body" class="loading">Chargement…</div>
+    </div>
+    <div class="seclabel" data-chap="Comptoir">🕶️ Comptoir · Solaires vs Optiques</div>
+    <div class="panel" id="comptoir-block">
+      <div class="subcap" style="margin:0 0 10px">Ventes « comptoir » (lunettes <b>non ajustées à la vue</b>) : part Solaires vs Optiques, en <b>unités</b>.</div>
+      <div id="comptoir-body" class="loading">Chargement…</div>
+    </div>
+    <div class="seclabel" data-chap="Genre">🧑‍🤝‍🧑 Genre estimé (web)</div>
+    <div class="panel" id="gender-block">
+      <div class="subcap" style="margin:0 0 10px">Estimation Homme/Femme à partir du <b>prénom de livraison</b> (commandes web). % calculés sur les prénoms identifiés.</div>
+      <div id="gender-body" class="loading">Chargement…</div>
+      <div id="gender-footnote" class="subcap" style="margin-top:8px"></div>
+    </div>
   </div>
 
   <div class="view" id="view-meta">
+    <div class="seclabel" data-chap="Indicateurs">Indicateurs Meta · MTD</div>
     <div class="kpis" id="meta-kpis"></div>
+    <div class="seclabel" data-chap="Alertes">Pilotage · alertes ads &amp; adsets</div>
     <div class="panel">
       <h2 style="display:flex;align-items:center;gap:10px">Alertes · live API Meta · plancher ROI {{ roi_floor }}
         <button class="btn" id="btn-alerts" style="margin-left:auto;font-size:.7rem;padding:5px 11px">Recalculer</button></h2>
@@ -206,25 +243,33 @@
       </div>
       <div id="meta-alerts" class="loading">Chargement des alertes…</div>
     </div>
+    <div class="seclabel" data-chap="Évolution">Évolution quotidienne</div>
     <div class="panel"><h2>Coût, Conversions, CTR &amp; ROAS / jour</h2><div class="chartbox"><canvas id="meta-chart"></canvas></div></div>
+    <div class="seclabel" data-chap="Campagnes">Par campagne</div>
     <div class="panel"><h2>Par campagne</h2><div id="meta-table" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="NL test">🇳🇱 Nederland test <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(isolé du principal, depuis 03/07)</span></div>
+    <div class="panel" id="meta-nl-block"><div id="meta-nl" class="loading">Chargement…</div></div>
   </div>
 
   <div class="view" id="view-google">
     <div id="google-empty"></div>
-    <div class="seclabel">Indicateurs du mois · MTD (jusqu'à hier)</div>
+    <div class="seclabel" data-chap="Indicateurs">Indicateurs du mois · MTD (jusqu'à hier)</div>
     <div class="kpis" id="google-kpis"></div>
+    <div class="seclabel" data-chap="Évolution">Évolution quotidienne</div>
     <div class="panel"><h2>Coût &amp; Valeur de conversion / jour</h2><div class="chartbox"><canvas id="google-chart"></canvas></div></div>
+    <div class="seclabel" data-chap="Campagnes">Détail par campagne &amp; PMax</div>
     <div class="panel"><h2>Par type de campagne</h2><div id="google-bytype" class="loading">Chargement…</div></div>
     <div class="panel"><h2>Par campagne</h2><div id="google-table" class="loading">Chargement…</div></div>
     <div class="panel"><h2>Asset groups — PMax (groupes de composants)</h2><div id="google-assets" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="NL test">🇳🇱 Nederland test <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(isolé du principal, depuis 03/07)</span></div>
+    <div class="panel" id="google-nl-block"><div id="google-nl" class="loading">Chargement…</div></div>
   </div>
 
   <div class="view" id="view-cro">
     <div class="panel" id="cro-diag"><h2>Diagnostic</h2><div class="loading">Chargement…</div></div>
-    <div class="seclabel">Tunnel de conversion · GA4 · J-1 / 3 j / 7 j (vs période précédente)</div>
+    <div class="seclabel" data-chap="Tunnel">Tunnel de conversion · GA4 · J-1 / 3 j / 7 j (vs période précédente)</div>
     <div class="panel"><h2>Funnel & taux de passage</h2><div id="cro-funnel" class="loading">Chargement…</div></div>
-    <div class="seclabel">Écoulement produit · concentration / dilution</div>
+    <div class="seclabel" data-chap="Produits">Écoulement produit · concentration / dilution</div>
     <div class="subtabs" id="cro-prod-tabs">
       <button class="subtab" data-pd="1">1 JOUR</button>
       <button class="subtab active" data-pd="3">3 JOURS</button>
@@ -234,14 +279,16 @@
       <input id="cro-prod-search" class="psearch" placeholder="🔍 Rechercher un produit (ex. Ann…)" autocomplete="off">
       <div id="cro-products" class="loading">Chargement…</div>
     </div>
-    <div class="seclabel">Disponibilité réelle · stock Shopify</div>
+    <div class="seclabel" data-chap="Stock">Disponibilité réelle · stock Shopify</div>
     <div class="panel"><h2>Produits en Rupture <span style="font-weight:400;font-size:.78rem;color:var(--muted)">(≥ 5 ventes sur 14 j · priorité)</span></h2><div id="cro-availability" class="loading">Chargement…</div></div>
-    <div class="seclabel">Qualité du trafic · canaux d'acquisition GA4</div>
+    <div class="seclabel" data-chap="Trafic">Qualité du trafic · canaux d'acquisition GA4</div>
     <div class="panel"><h2 id="cro-ch-chart-ttl">Tendance des sessions par canal</h2>
       <div class="subcap">Pointillés = 2 derniers jours : attribution GA4 encore provisoire (latence de traitement 24-48 h).</div>
       <div class="chartbox"><canvas id="cro-channels-chart"></canvas></div></div>
     <div class="panel"><h2>Détail par canal · 7 derniers jours <span style="font-weight:400;font-size:.78rem;color:var(--muted)">vs 7 précédents</span></h2>
       <div id="cro-channels" class="loading">Chargement…</div></div>
+  </div>
+  </div>
   </div>
 </div>
 
@@ -397,6 +444,7 @@ function renderPeriodTable(containerId,rows,labelFn){
     {label:"CVR",     key:"cvr",     cmp:"cvr_cmp",     fmt:pct,       hi:true, kind:"pts",good:true},
     {label:"Cmd",     key:"orders",  cmp:"orders_cmp",  fmt:num.format,hi:true, kind:"pct",good:true},
     {label:"CA",      key:"ca",      cmp:"ca_cmp",      fmt:eur.format,hi:true, kind:"pct",good:true},
+    {label:"ATV",     key:"atv",     cmp:"atv_cmp",     fmt:eur.format,hi:true, kind:"pct",good:true},
     {label:"Dépense", key:"spend",   cmp:"spend_cmp",   fmt:eur.format,hi:false,kind:"pct",good:null},
     {label:"COS",     key:"cos",     cmp:"cos_cmp",     fmt:pct,       hi:false,kind:"pts",good:false},
   ];
@@ -414,13 +462,81 @@ function renderPeriodTable(containerId,rows,labelFn){
   });
   document.getElementById(containerId).innerHTML=h+"</tbody></table>";
 }
+// ---- Grain global (Jour/Semaine/Mois) : pilote tous les blocs temporels de la Vue d'ensemble ----
+let _grain='day', _ovData=null, _periodsData=null, _custData=null, _acqData=null;
+function setGrain(g){ _grain=g;
+  document.querySelectorAll('#grain-global .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));
+  renderPerf(); renderCust(); renderAcq(); renderMix(); renderComptoir(); renderGender(); renderNl();
+}
+function renderDailyPerf(){
+  const el=document.getElementById('perf-body'); if(!el)return;
+  const d=_ovData; if(!d){el.innerHTML='';return;}
+  const rows=d.rows||[], dt=d.daily_targets;
+  const cvrOf=r=>(r.sessions?r.orders/r.sessions:null);
+  const COLS=[
+    {label:"Sessions",get:r=>r.sessions,fmt:num.format,hi:true},
+    {label:"CVR",get:cvrOf,fmt:pct,hi:true},
+    {label:"Cmd",get:r=>r.orders,fmt:num.format,hi:true},
+    {label:"CA",get:r=>r.ca_shopify,fmt:eur.format,hi:true,dot:"ca"},
+    {label:"ATV",get:r=>(r.orders?r.ca_shopify/r.orders:null),fmt:eur.format,hi:true},
+    {label:"Meta",get:r=>r.meta_spend,fmt:eur.format,hi:false},
+    {label:"Google",get:r=>r.google_spend,fmt:eur.format,hi:false},
+    {label:"Dépense",get:r=>r.ad_spend_total,fmt:eur.format,hi:false,dot:"spend"},
+    {label:"COS",get:r=>r.cos_blended,fmt:pct,hi:false,dot:"cos"},
+  ];
+  const ext=COLS.map(c=>{const vs=rows.map(c.get).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
+  const bg=(i,v)=>gradBg(v,ext[i][0],ext[i][1],COLS[i].hi);
+  const dot=(kind,r)=>{if(!dt)return"";let good;
+    if(kind==="ca")good=r.ca_shopify>=dt.ca;else if(kind==="spend")good=r.ad_spend_total<=dt.spend;
+    else if(kind==="cos")good=r.cos_blended!=null&&r.cos_blended<=dt.cos;else return"";
+    return `<span class="dot ${good?"dot-g":"dot-r"}"></span>`;};
+  const legend=`<div class="legend">Dégradé par colonne <span class="grad"></span> du moins bon (rose) au meilleur (bleu). Pastille = vs objectif quotidien : <span class="dot dot-g"></span> mieux <span class="dot dot-r"></span> moins bien.</div>`;
+  let h=legend+`<table><thead><tr><th>Jour</th>${COLS.map(c=>`<th>${c.label}</th>`).join("")}</tr></thead><tbody>`;
+  rows.slice().reverse().forEach(r=>{h+=`<tr><td>${frDay(r.date)}</td>`+COLS.map((c,i)=>{const v=c.get(r);const d2=c.dot?dot(c.dot,r):"";return `<td style="background:${bg(i,v)}">${v==null?"—":c.fmt(v)}${d2}</td>`;}).join("")+`</tr>`;});
+  el.innerHTML=h+"</tbody></table>";
+}
+function renderPerf(){
+  if(_grain==='day') return renderDailyPerf();
+  const el=document.getElementById('perf-body'); if(!el)return;
+  if(!_periodsData){el.innerHTML='';return;}
+  if(_grain==='week') renderPeriodTable('perf-body',_periodsData.weeks,weekLabel);
+  else renderPeriodTable('perf-body',_periodsData.months.slice().reverse(),monthLabel);
+}
+function renderCust(){
+  const el=document.getElementById('cust-body'); if(!el)return;
+  const d=_custData;
+  if(!d){el.innerHTML='';return;}
+  if(!d.ok){el.innerHTML=`<div class="empty">Clients indisponibles : ${d.error||'erreur'}</div>`;return;}
+  el.innerHTML=custBlock(d[_grain]);
+}
+function renderAcq(){
+  const el=document.getElementById('acq-body'); if(!el)return;
+  const d=_acqData;
+  if(!d){el.innerHTML='';return;}
+  if(!d.ok){el.innerHTML=`<div class="empty">Acquisition indisponible : ${d.error||'erreur'}</div>`;return;}
+  el.innerHTML=acqTable(d[_grain]);
+}
 async function loadPeriods(){
   const d=await getJSON("/api/periods"); if(!d)return;
-  renderPeriodTable("cos-weekly",d.weeks,weekLabel);
-  renderPeriodTable("cos-monthly",d.months.slice().reverse(),monthLabel);
+  _periodsData=d; renderPerf();
 }
 
-let _custScope="global";
+// Semaine ISO courante au format BigQuery %G-W%V (ex. "2026-W25").
+function _isoWeekStr(d){
+  const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day);
+  const ys=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  const wk=Math.ceil((((t-ys)/86400000)+1)/7);
+  return `${t.getUTCFullYear()}-W${String(wk).padStart(2,"0")}`;
+}
+// Vrai si la période est la semaine ou le mois EN COURS (donc incomplète).
+// (Le grain "jour" est déjà coupé à J-1 : aucune ligne ne correspond à aujourd'hui.)
+function _periodInProgress(period){
+  const now=new Date();
+  const m=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  return period===m || period===_isoWeekStr(now);
+}
+let _custScope="web";
 function setCustScope(s){_custScope=s; loadCustomers();}
 function custBlock(rows){
   const tog=`<div class="ctoggle">
@@ -430,16 +546,19 @@ function custBlock(rows){
   let body;
   if(!rows||!rows.length){ body=`<div class="empty">Pas encore de données clients.</div>`; }
   else {
-    const news=rows.map(x=>x.new_customers||0), rets=rows.map(x=>x.returning_customers||0);
-    const pcts=rows.map(x=>x.pct_new).filter(p=>p!=null);
+    // La période en cours (semaine/mois incomplets) est exclue du calcul de l'échelle et non teintée.
+    const full=rows.filter(x=>!_periodInProgress(x.period));
+    const base=full.length?full:rows;
+    const news=base.map(x=>x.new_customers||0), rets=base.map(x=>x.returning_customers||0);
+    const pcts=base.map(x=>x.pct_new).filter(p=>p!=null);
     const nmn=Math.min(...news),nmx=Math.max(...news),rmn=Math.min(...rets),rmx=Math.max(...rets);
     const pmn=pcts.length?Math.min(...pcts):null,pmx=pcts.length?Math.max(...pcts):null;
     let h=`<table><thead><tr><th>Période</th><th>Nouveaux</th><th>Fidèles</th><th>% nouveaux</th></tr></thead><tbody>`;
-    rows.slice().reverse().forEach(x=>{const nv=x.new_customers||0,rv=x.returning_customers||0;
-      h+=`<tr><td>${x.period}</td>
-        <td style="background:${gradBg(nv,nmn,nmx,true)}">${num.format(nv)}${_custScope==='web'?`<span class="sub">dont ${num.format(x.new_brand||0)} LPL</span>`:''}</td>
-        <td style="background:${gradBg(rv,rmn,rmx,true)}">${num.format(rv)}</td>
-        <td style="background:${x.pct_new!=null?gradBlue(x.pct_new,pmn,pmx):''}">${x.pct_new!=null?pct(x.pct_new):"—"}</td></tr>`;});
+    rows.slice().reverse().forEach(x=>{const nv=x.new_customers||0,rv=x.returning_customers||0,ip=_periodInProgress(x.period);
+      h+=`<tr><td>${x.period}${ip?' <span class="pill">en cours</span>':''}</td>
+        <td style="background:${ip?'':gradBg(nv,nmn,nmx,true)}">${num.format(nv)}${_custScope==='web'?`<span class="sub">dont ${num.format(x.new_brand||0)} New to LPL</span>`:''}</td>
+        <td style="background:${ip?'':gradBg(rv,rmn,rmx,true)}">${num.format(rv)}</td>
+        <td style="background:${ip||x.pct_new==null?'':gradBlue(x.pct_new,pmn,pmx)}">${x.pct_new!=null?pct(x.pct_new):"—"}</td></tr>`;});
     body=h+"</tbody></table>";
   }
   const scopeDef=_custScope==='global'
@@ -448,52 +567,171 @@ function custBlock(rows){
   const def=`<div class="cdef"><b>Comment lire ce tableau —</b> chaque client est compté une fois par période, jusqu'à hier (J-1).<br>
     <b>Nouveau</b> : sa 1ʳᵉ commande, <i>ou</i> aucune commande depuis 3 ans (un client réactivé après 3 ans redevient nouveau).<br>
     <b>Fidèle</b> : il avait déjà commandé dans les 3 années précédant la période.<br>
-    <b>Portée « ${_custScope==='global'?'Global (boutique + web)':'Web only'} »</b> : ${scopeDef}.${_custScope==='web'?'<br><b>« dont X LPL »</b> : parmi les nouveaux web, ceux qui sont <i>vraiment</i> nouveaux pour la marque (le reste sont déjà clients en boutique qui passent au web).':''}</div>`;
+    <b>Portée « ${_custScope==='global'?'Global (boutique + web)':'Web only'} »</b> : ${scopeDef}.${_custScope==='web'?'<br><b>« dont X New to LPL »</b> : parmi les nouveaux web, ceux qui sont <i>vraiment</i> nouveaux pour la marque (le reste sont déjà clients en boutique qui passent au web — ils apparaissent « nouveaux » en Web mais « fidèles » en Global).':''}</div>`;
   return tog+def+body;
 }
 async function loadCustomers(){
-  const d=await getJSON(`/api/customers?scope=${_custScope}`); if(!d)return;
-  const set=(id,rows,err)=>{const el=document.getElementById(id);if(el)el.innerHTML=err?`<div class="empty">Clients indisponibles : ${err}</div>`:custBlock(rows);};
-  if(!d.ok){["cust-day","cust-week","cust-month"].forEach(id=>set(id,null,d.error||"erreur"));return;}
-  set("cust-day",d.day); set("cust-week",d.week); set("cust-month",d.month);
+  _custData=await getJSON(`/api/customers?scope=${_custScope}`); renderCust();
 }
 function acqTable(rows){
   if(!rows||!rows.length)return `<div class="empty">Pas encore de données.</div>`;
-  const cacs=rows.map(x=>x.cac).filter(v=>v!=null), nbs=rows.map(x=>x.new_web||0), sps=rows.map(x=>x.ad_spend||0);
+  // La période en cours (semaine/mois incomplets) est exclue du calcul de l'échelle et non teintée.
+  const full=rows.filter(x=>!_periodInProgress(x.period)), base=full.length?full:rows;
+  const cacs=base.map(x=>x.cac).filter(v=>v!=null), nbs=base.map(x=>x.new_web||0), sps=base.map(x=>x.ad_spend||0);
   const cmn=cacs.length?Math.min(...cacs):null,cmx=cacs.length?Math.max(...cacs):null;
   const nmn=Math.min(...nbs),nmx=Math.max(...nbs),smn=Math.min(...sps),smx=Math.max(...sps);
   let h=`<table><thead><tr><th>Période</th><th>Coût / nouveau client web</th><th>Nouveaux web</th><th>Dépense pub</th></tr></thead><tbody>`;
-  rows.slice().reverse().forEach(x=>{const nb=x.new_web||0,sp=x.ad_spend||0;
-    h+=`<tr><td>${x.period}</td>
-      <td style="background:${x.cac!=null?gradBR(x.cac,cmn,cmx):''}"><b>${x.cac!=null?eur.format(x.cac):"—"}</b></td>
-      <td style="background:${gradBR(nb,nmn,nmx,true)}">${num.format(nb)}</td>
-      <td style="background:${gradRed(sp,smn,smx)}">${eur.format(sp)}</td></tr>`;});
+  rows.slice().reverse().forEach(x=>{const nb=x.new_web||0,sp=x.ad_spend||0,ip=_periodInProgress(x.period);
+    h+=`<tr><td>${x.period}${ip?' <span class="pill">en cours</span>':''}</td>
+      <td style="background:${ip||x.cac==null?'':gradBR(x.cac,cmn,cmx)}"><b>${x.cac!=null?eur.format(x.cac):"—"}</b></td>
+      <td style="background:${ip?'':gradBR(nb,nmn,nmx,true)}">${num.format(nb)}</td>
+      <td style="background:${ip?'':gradRed(sp,smn,smx)}">${eur.format(sp)}</td></tr>`;});
   return h+`</tbody></table><div class="cdef"><b>Web uniquement</b> (la pub stimule surtout l'acquisition en ligne). CAC <b>brut</b> = dépense pub (Meta + Google) ÷ nouveaux clients <i>web</i>. <b>Surévalué</b> : une partie de la pub touche aussi des clients existants (retargeting, branding) — à lire en <b>tendance</b>. Couleurs : coût élevé = rose / faible = bleu ; nouveaux élevés = bleu / faibles = rose ; dépense = intensité de rose.</div>`;
+}
+const _MIXTIERS=['29','49','69','89','autre'];
+const _MIXLBL={'29':'29 €','49':'49 €','69':'69 €','89':'89 €','autre':'Autre'};
+function mixBlock(rows,scope){
+  if(!rows||!rows.length)return `<div class="empty">Pas encore de données.</div>`;
+  const data=rows.map(r=>{const tot=r[scope+'_total']||0,u=r[scope]||{};
+    return {period:r.period,total:tot,pct:Object.fromEntries(_MIXTIERS.map(t=>[t,tot?(u[t]||0)/tot:null]))};});
+  const ext={}; _MIXTIERS.forEach(t=>{const vs=data.map(d=>d.pct[t]).filter(v=>v!=null);
+    ext[t]=vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
+  let h=`<table><thead><tr><th>Période</th>${_MIXTIERS.map(t=>`<th>${_MIXLBL[t]}</th>`).join('')}<th>Montures</th></tr></thead><tbody>`;
+  data.slice().reverse().forEach(d=>{const ip=_periodInProgress(d.period);
+    h+=`<tr><td>${d.period}${ip?' <span class="pill">en cours</span>':''}</td>`+
+      _MIXTIERS.map(t=>{const v=d.pct[t];
+        return `<td style="background:${(v!=null&&!ip)?gradBlue(v,ext[t][0],ext[t][1]):''}">${v!=null?pct(v):'—'}</td>`;}).join('')+
+      `<td>${num.format(d.total)}</td></tr>`;});
+  return h+`</tbody></table>`;
+}
+let _mixData=null, _mixGrain='month';
+function renderMix(){
+  const body=document.getElementById('mix-body'); if(!body)return;
+  if(!_mixData||!_mixData.ok){body.innerHTML=`<div class="empty">Mix indisponible : ${_mixData&&_mixData.error?_mixData.error:'erreur'}</div>`;return;}
+  const rows=_mixData[_grain]||[];
+  const def=`<div class="cdef">Part de chaque gamme dans le <b>nombre de montures vendues</b> (gamme = prix standard <b>avant remise</b>, stable même en promo). Couleur = intensité du % par colonne (clair → bleu) pour repérer les tendances. « Autre » = hors 29/49/69/89 €. Période en cours = partielle.</div>`;
+  body.innerHTML=
+    `<div class="clbl">Optique</div>`+mixBlock(rows,'optique')+
+    `<div class="clbl sep">Solaires</div>`+mixBlock(rows,'solaire')+
+    `<div class="clbl sep">Optique + Solaires</div>`+mixBlock(rows,'global')+def;
+}
+function setMixGrain(g){_mixGrain=g; renderMix();
+  document.querySelectorAll('#mix-grain .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));}
+async function loadPriceMix(){ _mixData=await getJSON("/api/price-mix"); renderMix(); }
+let _compData=null, _compGrain='month';
+function comptoirTable(rows){
+  if(!rows||!rows.length)return `<div class="empty">Pas encore de données.</div>`;
+  const data=rows.map(r=>{const t=r.total||0;return {period:r.period,total:t,ps:t?r.solaire/t:null,po:t?r.optique/t:null};});
+  const se=(()=>{const v=data.map(d=>d.ps).filter(x=>x!=null);return v.length?[Math.min(...v),Math.max(...v)]:[null,null];})();
+  const oe=(()=>{const v=data.map(d=>d.po).filter(x=>x!=null);return v.length?[Math.min(...v),Math.max(...v)]:[null,null];})();
+  let h=`<table><thead><tr><th>Période</th><th>Solaires</th><th>Optiques</th><th>Unités</th></tr></thead><tbody>`;
+  data.slice().reverse().forEach(d=>{const ip=_periodInProgress(d.period);
+    h+=`<tr><td>${d.period}${ip?' <span class="pill">en cours</span>':''}</td>
+      <td style="background:${(d.ps!=null&&!ip)?gradBlue(d.ps,se[0],se[1]):''}">${d.ps!=null?pct(d.ps):'—'}</td>
+      <td style="background:${(d.po!=null&&!ip)?gradBlue(d.po,oe[0],oe[1]):''}">${d.po!=null?pct(d.po):'—'}</td>
+      <td>${num.format(d.total)}</td></tr>`;});
+  return h+`</tbody></table>`;
+}
+function renderComptoir(){
+  const body=document.getElementById('comptoir-body'); if(!body)return;
+  if(!_compData||!_compData.ok){body.innerHTML=`<div class="empty">Indisponible : ${_compData&&_compData.error?_compData.error:'erreur'}</div>`;return;}
+  body.innerHTML=comptoirTable(_compData[_grain]||[])+
+    `<div class="cdef"><b>Comptoir</b> = lunettes vendues <b>non ajustées à la vue</b> (product_type strict : <b>Solaires</b> vs <b>Monture Optique</b>). Les montures montées avec verres correcteurs (configurateur) relèveront du futur bloc « Comptoir vs À la vue ». Part en <b>unités</b> ; couleur = intensité du % par colonne.</div>`;
+}
+function setCompGrain(g){_compGrain=g; renderComptoir();
+  document.querySelectorAll('#comptoir-grain .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));}
+async function loadComptoir(){ _compData=await getJSON("/api/comptoir"); renderComptoir(); }
+let _nlData=null, _nlGrain='month';
+function nlTable(rows){
+  if(!rows||!rows.length)return `<div class="empty">Pas encore de données NL (test démarré le 03/07/2026).</div>`;
+  const cols=[
+    {label:'Sessions',get:r=>r.sessions,fmt:num.format,hi:true},
+    {label:'CVR',get:r=>r.cvr,fmt:pct,hi:true},
+    {label:'Cmd',get:r=>r.orders,fmt:num.format,hi:true},
+    {label:'CA',get:r=>r.ca,fmt:eur.format,hi:true},
+    {label:'ATV',get:r=>r.atv,fmt:eur.format,hi:true},
+    {label:'Meta',get:r=>r.meta,fmt:eur.format,hi:false},
+    {label:'Google',get:r=>r.google,fmt:eur.format,hi:false},
+    {label:'Dépense',get:r=>r.spend,fmt:eur.format,hi:false},
+    {label:'COS',get:r=>r.cos,fmt:pct,hi:false},
+  ];
+  const full=rows.filter(r=>!_periodInProgress(r.period)), base=full.length?full:rows;
+  const ext=cols.map(c=>{const vs=base.map(c.get).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
+  let h=`<table><thead><tr><th>Période</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`;
+  rows.slice().reverse().forEach(r=>{const ip=_periodInProgress(r.period);
+    h+=`<tr><td>${r.period}${ip?' <span class="pill">en cours</span>':''}</td>`+
+      cols.map((c,i)=>{const v=c.get(r);return `<td style="background:${(v!=null&&!ip)?gradBg(v,ext[i][0],ext[i][1],c.hi):''}">${v==null?'—':c.fmt(v)}</td>`;}).join('')+`</tr>`;});
+  return h+`</tbody></table>`;
+}
+function renderNl(){
+  const body=document.getElementById('nl-body'); if(!body)return;
+  if(!_nlData||!_nlData.ok){body.innerHTML=`<div class="empty">Indisponible : ${_nlData&&_nlData.error?_nlData.error:'erreur'}</div>`;return;}
+  body.innerHTML=nlTable(_nlData[_grain]||[])+
+    `<div class="cdef"><b>NEDERLAND TEST</b> — CA/Cmd = commandes livrées aux Pays-Bas ; Dépense = campagnes Meta (NL - CVR - DABA / PRO - TESTING) + Google (LPL - NL - PMax - Solaires) ; COS = dépense ÷ CA. <b>Sessions</b> = trafic GA4 géolocalisé Pays-Bas (base légèrement différente du « shipping NL » des commandes), CVR = Cmd ÷ Sessions. Segment sorti du tableau principal depuis le 03/07/2026.</div>`;
+}
+function setNlGrain(g){_nlGrain=g; renderNl();
+  document.querySelectorAll('#nl-grain .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));}
+async function loadNl(){ _nlData=await getJSON("/api/nl"); renderNl(); }
+let _genData=null, _genGrain='month';
+function _mmx(vals){const v=vals.filter(x=>x!=null);return v.length?[Math.min(...v),Math.max(...v)]:[null,null];}
+function genderTable(rows){
+  if(!rows||!rows.length)return `<div class="empty">Pas encore de données.</div>`;
+  const data=rows.map(r=>{const k=r.known||0,t=r.total||0;return {period:r.period,total:t,ph:k?r.H/k:null,pf:k?r.F/k:null,pu:t?r.U/t:null};});
+  const he=_mmx(data.map(d=>d.ph)), fe=_mmx(data.map(d=>d.pf));
+  let h=`<table><thead><tr><th>Période</th><th>Homme</th><th>Femme</th><th>Indéterminé</th><th>Cmd web</th></tr></thead><tbody>`;
+  data.slice().reverse().forEach(d=>{const ip=_periodInProgress(d.period);
+    h+=`<tr><td>${d.period}${ip?' <span class="pill">en cours</span>':''}</td>
+      <td style="background:${(d.ph!=null&&!ip)?gradBlue(d.ph,he[0],he[1]):''}">${d.ph!=null?pct(d.ph):'—'}</td>
+      <td style="background:${(d.pf!=null&&!ip)?gradBlue(d.pf,fe[0],fe[1]):''}">${d.pf!=null?pct(d.pf):'—'}</td>
+      <td style="color:#9aa1ab;font-size:.72rem">${d.pu!=null?pct(d.pu):'—'}</td>
+      <td>${num.format(d.total)}</td></tr>`;});
+  return h+`</tbody></table>`;
+}
+function renderGender(){
+  const body=document.getElementById('gender-body'); if(!body)return;
+  if(!_genData||!_genData.ok){body.innerHTML=`<div class="empty">Indisponible : ${_genData&&_genData.error?_genData.error:'erreur'}</div>`;return;}
+  body.innerHTML=genderTable(_genData[_grain]||[])+
+    `<div class="cdef"><b>Estimation</b> Homme/Femme d'après le prénom de livraison (le prénom ne détermine pas le genre réel). Méthode hybride : dictionnaire FR/EN/AR + base élargie + Claude sur les prénoms rares. « Indéterminé » = prénoms mixtes/non reconnus (% sur le total). Homme/Femme en % des prénoms <b>identifiés</b>. Couleur = intensité du % par colonne.</div>`;
+}
+function setGenGrain(g){_genGrain=g; renderGender();
+  document.querySelectorAll('#gender-grain .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));}
+async function loadGender(){ _genData=await getJSON("/api/gender"); renderGender(); }
+async function loadClaudeUsage(){
+  const el=document.getElementById('gender-footnote'); if(!el)return;
+  const d=await getJSON("/api/claude-usage");
+  if(!d||!d.ok){el.innerHTML="";return;}
+  const a=d.all,m=d.last30;
+  if(!a.names){el.innerHTML="💸 Claude non sollicité — le dictionnaire + gender-guesser suffisent (coût 0 €).";return;}
+  el.innerHTML=`💸 Conso Claude (estimation genre) — 30 j : ${num.format(m.names)} prénoms inédits · ${num.format(m.input_tokens+m.output_tokens)} tokens · ≈ ${eur2.format(m.cost_eur)} · <b>total cumulé ≈ ${eur2.format(a.cost_eur)}</b>. Appelé uniquement sur les prénoms jamais vus.`;
 }
 function ropoBlock(rows){
   if(!rows||!rows.length)return "";
   const r1=rows.map(x=>x.total_store?x.web_to_store/x.total_store:null).filter(v=>v!=null);
   const r2=rows.map(x=>x.total_web?x.store_to_web/x.total_web:null).filter(v=>v!=null);
   const a1=r1.length?Math.min(...r1):null,b1=r1.length?Math.max(...r1):null,a2=r2.length?Math.min(...r2):null,b2=r2.length?Math.max(...r2):null;
-  let h=`<div class="clbl" style="margin-top:18px">🔁 Omnicanal · web ↔ boutique <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(mensuel, tous canaux — indépendant du filtre ci-dessus)</span></div>
-    <table><thead><tr><th>Mois</th><th>Clients boutique venus du web</th><th>Clients web déjà clients boutique</th></tr></thead><tbody>`;
+  let h=`<div class="clbl">🔁 Web ↔ boutique <span style="font-weight:400;font-size:.72rem;color:var(--muted)">— parmi les clients d'un canal ce mois-ci, combien avaient déjà acheté dans l'autre avant</span></div>
+    <table><thead><tr>
+      <th>Mois</th>
+      <th>Clients boutique</th><th>↳ dont déjà clients en ligne</th>
+      <th>Clients web</th><th>↳ dont déjà clients en boutique</th>
+    </tr></thead><tbody>`;
   rows.slice().reverse().forEach(x=>{const p1=x.total_store?x.web_to_store/x.total_store:null,p2=x.total_web?x.store_to_web/x.total_web:null;
     h+=`<tr><td>${x.period}</td>
-      <td style="background:${gradBlue(p1,a1,b1)}">${num.format(x.web_to_store||0)}<span class="sub">${p1!=null?pct(p1)+" des clients boutique":""}</span></td>
-      <td style="background:${gradBlue(p2,a2,b2)}">${num.format(x.store_to_web||0)}<span class="sub">${p2!=null?pct(p2)+" des clients web":""}</span></td></tr>`;});
-  return h+`</tbody></table><div class="cdef"><b>Clients boutique venus du web</b> : ont acheté en boutique ce mois-ci alors qu'ils avaient déjà acheté en ligne avant (le % = part des clients boutique du mois). <b>Clients web déjà clients boutique</b> : ont commandé en ligne ce mois après un achat boutique antérieur. Mesure l'effet <b>ROPO</b> (je découvre/achète en ligne puis en magasin, et inverse) — utile pour justifier la pub web même quand la vente finit en boutique.</div>`;
+      <td>${num.format(x.total_store||0)}</td>
+      <td style="background:${gradBlue(p1,a1,b1)}">${num.format(x.web_to_store||0)}<span class="sub">${p1!=null?pct(p1)+" des clients boutique":"—"}</span></td>
+      <td>${num.format(x.total_web||0)}</td>
+      <td style="background:${gradBlue(p2,a2,b2)}">${num.format(x.store_to_web||0)}<span class="sub">${p2!=null?pct(p2)+" des clients web":"—"}</span></td></tr>`;});
+  return h+`</tbody></table><div class="cdef"><b>Comment lire une ligne</b> : « Clients boutique » = nb de personnes ayant acheté en magasin ce mois ; « ↳ dont déjà clients en ligne » = combien d'entre eux avaient <b>déjà acheté sur le site avant</b> (le % = leur part). Idem en miroir pour le web. Un client qui achète en boutique après avoir acheté en ligne = effet <b>ROPO</b> (il découvre/recherche en ligne, puis achète en magasin) — c'est ce qui <b>justifie la pub web même quand la vente finit en boutique</b>.</div>`;
 }
 async function loadAcquisition(){
-  const d=await getJSON("/api/acquisition");
-  const set=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html;};
-  if(!d){return;}
-  if(!d.ok){["acq-day","acq-week","acq-month"].forEach(id=>set(id,`<div class="empty">Acquisition indisponible : ${d.error||"erreur"}</div>`));return;}
-  set("acq-day",acqTable(d.day)); set("acq-week",acqTable(d.week));
-  set("acq-month",acqTable(d.month)+ropoBlock(d.ropo));
+  _acqData=await getJSON("/api/acquisition"); renderAcq();
+  const el=document.getElementById("ropo-block");
+  if(el) el.innerHTML=(_acqData&&_acqData.ok)?(ropoBlock(_acqData.ropo)||`<div class="empty">Pas encore de données ROPO.</div>`):`<div class="empty">ROPO indisponible.</div>`;
 }
 async function loadCos(){
-  loadTargets(); loadPeriods(); loadCustomers(); loadAcquisition();
+  loadTargets(); loadPeriods(); loadCustomers(); loadAcquisition(); loadPriceMix(); loadComptoir(); loadGender(); loadClaudeUsage(); loadNl();
   const d=await getJSON(`/api/overview?days=${DAYS}`); if(!d)return;
+  _ovData=d;
   const m=d.mtd, tr=d.trends;
   const tch=(o,inv)=>chip("3j",o.d3,inv)+chip("7j",o.d7,inv);
   document.getElementById("cos-kpis").innerHTML=
@@ -513,42 +751,7 @@ async function loadCos(){
     y:{position:"left",stacked:true,beginAtZero:true,ticks:{callback:v=>num.format(v)+" €"}},x:{stacked:true},
     y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},ticks:{callback:v=>v+" %"}}},
     plugins:{legend:{labels:{boxWidth:12}}}}});
-  const dt=d.daily_targets;
-  const cvrOf=r=>(r.sessions?r.orders/r.sessions:null);
-  // hi:true = valeur haute = bonne (bleu) ; hi:false = valeur basse = bonne (bleu)
-  const COLS=[
-    {label:"Sessions",get:r=>r.sessions,        fmt:num.format,            hi:true},
-    {label:"CVR",     get:cvrOf,                fmt:pct,                   hi:true},
-    {label:"Cmd",     get:r=>r.orders,          fmt:num.format,            hi:true},
-    {label:"CA",      get:r=>r.ca_shopify,      fmt:eur.format,            hi:true,  dot:"ca"},
-    {label:"Meta",    get:r=>r.meta_spend,      fmt:eur.format,            hi:false},
-    {label:"Google",  get:r=>r.google_spend,    fmt:eur.format,            hi:false},
-    {label:"Dépense", get:r=>r.ad_spend_total,  fmt:eur.format,            hi:false, dot:"spend"},
-    {label:"COS",     get:r=>r.cos_blended,     fmt:pct,                   hi:false, dot:"cos"},
-  ];
-  // étendue min/max par colonne sur la période affichée (≈30 j) pour le dégradé
-  const ext=COLS.map(c=>{const vs=rows.map(c.get).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
-  const bg=(i,v)=>gradBg(v,ext[i][0],ext[i][1],COLS[i].hi);
-  const dot=(kind,r)=>{
-    if(!dt)return"";
-    let good;
-    if(kind==="ca")    good=r.ca_shopify>=dt.ca;
-    else if(kind==="spend") good=r.ad_spend_total<=dt.spend;
-    else if(kind==="cos")   good=r.cos_blended!=null&&r.cos_blended<=dt.cos;
-    else return"";
-    return `<span class="dot ${good?"dot-g":"dot-r"}"></span>`;
-  };
-  const legend=`<div class="legend">Dégradé par colonne sur la période <span class="grad"></span> du moins bon (rose) au meilleur (bleu).
-    &nbsp;Pastille = vs objectif quotidien : <span class="dot dot-g"></span> mieux <span class="dot dot-r"></span> moins bien.</div>`;
-  let h=legend+`<table><thead><tr><th>Jour</th>${COLS.map(c=>`<th>${c.label}</th>`).join("")}</tr></thead><tbody>`;
-  rows.slice().reverse().forEach(r=>{
-    h+=`<tr><td>${frDay(r.date)}</td>`+COLS.map((c,i)=>{
-      const v=c.get(r);
-      const d2=c.dot?dot(c.dot,r):"";
-      return `<td style="background:${bg(i,v)}">${v==null?"—":c.fmt(v)}${d2}</td>`;
-    }).join("")+`</tr>`;
-  });
-  document.getElementById("cos-table").innerHTML=h+"</tbody></table>";
+  renderPerf();
 }
 
 async function loadMeta(){
@@ -582,7 +785,21 @@ async function loadMeta(){
     <td>${num.format(c.purchases)}</td><td>${c.cpa?eur2.format(c.cpa):"—"}</td><td>${eur.format(c.value)}</td>
     <td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
   document.getElementById("meta-table").innerHTML=h+"</tbody></table>";
+  renderMetaNl(d.nl);
   loadMetaAlerts();
+}
+function renderMetaNl(nl){
+  const el=document.getElementById("meta-nl"); if(!el)return;
+  const camps=(nl&&nl.campaigns)||[];
+  if(!camps.length){el.innerHTML=`<div class="empty">Aucune dépense Meta « NL » sur la période (test démarré le 03/07/2026).</div>`;return;}
+  const t=camps.reduce((a,c)=>({s:a.s+(c.spend||0),v:a.v+(c.value||0),p:a.p+(c.purchases||0)}),{s:0,v:0,p:0});
+  const roas=t.s?t.v/t.s:0, cpa=t.p?t.s/t.p:0;
+  let h=`<div class="kpis">${card("Dépense",eur.format(t.s))}${card("Achats",num.format(t.p))}${card("Valeur",eur.format(t.v))}${card("ROAS",roas.toFixed(2),"",roas<ROI_FLOOR)}${roas3Card(nl.roas3)}</div>`;
+  h+=`<table><thead><tr><th>Campagne</th><th>Dépense</th><th>Achats</th><th>Coût/achat</th><th>Valeur</th><th>ROAS</th></tr></thead><tbody>`;
+  camps.forEach(c=>{const w=c.roas<ROI_FLOOR;h+=`<tr><td>${c.campaign_name}</td><td>${eur.format(c.spend)}</td>
+    <td>${num.format(c.purchases)}</td><td>${c.cpa?eur2.format(c.cpa):"—"}</td><td>${eur.format(c.value)}</td>
+    <td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
+  el.innerHTML=h+"</tbody></table>";
 }
 
 let _metaWin=3; const _metaCache={};
@@ -666,7 +883,21 @@ async function loadGoogle(){
     <td>${eur.format(c.cost)}</td><td>${num.format(Math.round(c.conv))}</td><td>${eur.format(c.value)}</td>
     <td>${c.cpa?eur2.format(c.cpa):"—"}</td><td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
   document.getElementById("google-table").innerHTML=h+"</tbody></table>";
+  renderGoogleNl(d.nl);
   loadAssetGroups();
+}
+function renderGoogleNl(nl){
+  const el=document.getElementById("google-nl"); if(!el)return;
+  const camps=(nl&&nl.campaigns)||[];
+  if(!camps.length){el.innerHTML=`<div class="empty">Aucune dépense Google « NL » sur la période (test démarré le 03/07/2026).</div>`;return;}
+  const t=camps.reduce((a,c)=>({c:a.c+(c.cost||0),v:a.v+(c.value||0),n:a.n+(c.conv||0)}),{c:0,v:0,n:0});
+  const roas=t.c?t.v/t.c:0, cpa=t.n?t.c/t.n:0;
+  let h=`<div class="kpis">${card("Coût",eur.format(t.c))}${card("Conversions",num.format(Math.round(t.n)))}${card("Valeur",eur.format(t.v))}${card("ROAS",roas.toFixed(2),"",roas<ROI_FLOOR)}${roas3Card(nl.roas3)}</div>`;
+  h+=`<table><thead><tr><th>Campagne</th><th>Type</th><th>Coût</th><th>Conv.</th><th>Valeur</th><th>Coût/conv.</th><th>ROAS</th></tr></thead><tbody>`;
+  camps.forEach(c=>{const w=c.roas<ROI_FLOOR;h+=`<tr><td>${c.campaign_name}</td><td><span class="pill">${c.campaign_type||""}</span></td>
+    <td>${eur.format(c.cost)}</td><td>${num.format(Math.round(c.conv))}</td><td>${eur.format(c.value)}</td>
+    <td>${c.cpa?eur2.format(c.cpa):"—"}</td><td class="${w?"warn":""}">${c.roas.toFixed(2)}</td></tr>`;});
+  el.innerHTML=h+"</tbody></table>";
 }
 async function loadAssetGroups(){
   const el=document.getElementById("google-assets");
@@ -812,19 +1043,47 @@ async function loadCroChannels(){
 
 function mkChart(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);}
 const loaded={};
+let _chapSpy=null;
+function buildChapRail(tab){
+  const view=document.getElementById("view-"+tab), rail=document.getElementById("chaprail");
+  if(!view||!rail)return;
+  if(_chapSpy){window.removeEventListener("scroll",_chapSpy);window.removeEventListener("resize",_chapSpy);_chapSpy=null;}
+  const secs=[...view.querySelectorAll(".seclabel")];
+  if(!secs.length){rail.style.display="none";rail.innerHTML="";return;}
+  rail.style.display="";
+  secs.forEach((s,i)=>{if(!s.id)s.id=`sec-${tab}-${i}`;});
+  rail.innerHTML=`<div class="crttl">Sur cette page</div>`+
+    secs.map(s=>`<a href="#${s.id}" data-t="${s.id}">${s.dataset.chap||s.textContent}</a>`).join("");
+  const links=rail.querySelectorAll("a");
+  links.forEach(a=>a.addEventListener("click",e=>{
+    e.preventDefault();
+    const el=document.getElementById(a.dataset.t);
+    if(el)window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-12,behavior:"smooth"});
+  }));
+  let raf=0;
+  const spy=()=>{ raf=0;
+    // au bas de page -> on force le dernier chapitre (sinon les sections courtes ne sont jamais surlignées)
+    const atBottom=window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-4;
+    let id=secs[0].id;
+    if(atBottom){ id=secs[secs.length-1].id; }
+    else{ const line=130; for(const s of secs){ if(s.getBoundingClientRect().top-line<=0) id=s.id; } }
+    links.forEach(a=>a.classList.toggle("on",a.dataset.t===id));
+  };
+  _chapSpy=()=>{ if(!raf) raf=requestAnimationFrame(spy); };
+  window.addEventListener("scroll",_chapSpy,{passive:true});
+  window.addEventListener("resize",_chapSpy);
+  spy();
+}
 function activate(tab){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+tab));
+  buildChapRail(tab);
   if(loaded[tab])return;        // déjà chargé pour la période courante -> bascule instantanée
   loaded[tab]=true;
   if(tab==="cos")loadCos(); if(tab==="cro")loadCro(); if(tab==="meta")loadMeta(); if(tab==="google")loadGoogle();
 }
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>activate(t.dataset.tab)));
-document.querySelectorAll("#cos-subtabs .subtab").forEach(b=>b.addEventListener("click",()=>{
-  document.querySelectorAll("#cos-subtabs .subtab").forEach(x=>x.classList.toggle("active",x===b));
-  const s=b.dataset.sub;
-  document.querySelectorAll(".subview").forEach(v=>v.classList.toggle("active",v.id==="sub-"+s));
-}));
+document.querySelectorAll("#grain-global .ctbtn").forEach(b=>b.addEventListener("click",()=>setGrain(b.dataset.g)));
 document.querySelectorAll("#cro-prod-tabs .subtab").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#cro-prod-tabs .subtab").forEach(x=>x.classList.toggle("active",x===b));
   loadCroProducts(parseInt(b.dataset.pd));
@@ -842,6 +1101,7 @@ const _ba=document.getElementById("btn-alerts");
 if(_ba) _ba.addEventListener("click",()=>loadMetaAlerts(true));
 loadHealth();
 loaded.cos=true;
+buildChapRail("cos");
 loadCos();
 </script>
 </body>

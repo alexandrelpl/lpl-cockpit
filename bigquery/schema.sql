@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_orders_daily` (
   date              DATE      NOT NULL,
   net_sales         FLOAT64   NOT NULL,   -- Total Net Sales (col B du Sheet)
   orders            INT64     NOT NULL,   -- Total Orders inclus (col C)
+  net_sales_nl      FLOAT64,              -- dont CA livré aux Pays-Bas (test NL)
+  orders_nl         INT64,                -- dont commandes livrées NL
   comptoir_new      INT64,
   comptoir_existing INT64,
   optique_new       INT64,
@@ -26,6 +28,10 @@ CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_orders_daily` (
 )
 PARTITION BY date
 OPTIONS (description = "CA net Shopify par date de commande, logique métier LPL (exclusions b2b/wholesale/alan/voided/non-web).");
+
+-- Colonnes NL ajoutées après coup (test Pays-Bas) : idempotent pour la table existante.
+ALTER TABLE `lpl_cockpit.shopify_orders_daily` ADD COLUMN IF NOT EXISTS net_sales_nl FLOAT64;
+ALTER TABLE `lpl_cockpit.shopify_orders_daily` ADD COLUMN IF NOT EXISTS orders_nl INT64;
 
 -- 2) Trafic & conversion Shopify (déjà filtré des bots par Shopify).
 CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_traffic_daily` (
@@ -133,6 +139,42 @@ CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_customer_orders` (
 ) PARTITION BY date CLUSTER BY customer_id
 OPTIONS (description = "Commandes-client (date, customer_id) pour le calcul new vs returning par cohorte.");
 
+-- 5h) Répartition ventes montures par gamme de prix (unités), par jour / portée / gamme.
+--     scope ∈ {optique, solaire} ; tier ∈ {29,49,69,89,autre} ; gamme = prix AVANT remise.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.frame_price_mix_daily` (
+  date DATE NOT NULL, scope STRING NOT NULL, tier STRING NOT NULL,
+  units INT64 NOT NULL, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY scope
+OPTIONS (description = "Ventes montures en unités par gamme de prix (29/49/69/89/autre) et portée (optique/solaire).");
+
+-- 5i) Comptoir (lunettes NON ajustées à la vue) : unités Solaires vs Optiques, strict product_type.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.frame_type_daily` (
+  date DATE NOT NULL, type STRING NOT NULL, units INT64 NOT NULL, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY type
+OPTIONS (description = "Comptoir : unités Solaires vs Monture Optique (strict product_type, hors à-la-vue).");
+
+-- 5j) Estimation genre (H/F/U) par prénom de livraison, commandes web. (ESTIMATION)
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.gender_daily` (
+  date DATE NOT NULL, gender STRING NOT NULL, units INT64 NOT NULL, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date CLUSTER BY gender
+OPTIONS (description = "Estimation Homme/Femme (U=indéterminé) par prénom de livraison, commandes web.");
+
+-- 5j-bis) Cache prénom -> genre (résolutions gender-guesser / Claude), pour ne pas recalculer.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.gender_name_cache` (
+  name STRING NOT NULL, gender STRING NOT NULL, updated_at TIMESTAMP NOT NULL
+) OPTIONS (description = "Cache prénom normalisé -> H/F/U (gg + Claude).");
+
+-- 5k) Sessions GA4 filtrées Pays-Bas (pour le CVR du segment NEDERLAND TEST).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.ga4_nl_daily` (
+  date DATE NOT NULL, sessions INT64, updated_at TIMESTAMP NOT NULL
+) PARTITION BY date OPTIONS (description = "Sessions GA4 pays = Pays-Bas (countryId=NL), pour le CVR NL.");
+
+-- 5j-ter) Conso API Claude (module genre) — append-only, pour suivi coût sur le dashboard.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.claude_usage` (
+  ts TIMESTAMP NOT NULL, task STRING, names INT64, input_tokens INT64, output_tokens INT64
+) PARTITION BY DATE(ts)
+OPTIONS (description = "Tokens consommés par les appels Claude (estimation genre).");
+
 -- Vue : new vs returning par grain (jour / semaine ISO / mois), customer-level, window-correct.
 --   new      = clients dont la 1re commande tombe dans la période
 --   returning = clients ayant commandé dans la période mais acquis AVANT la période
@@ -168,36 +210,55 @@ CREATE TABLE IF NOT EXISTS `lpl_cockpit.customer_emails` (
 -- VUE D'ENSEMBLE — un point par jour, prête pour le front / Looker Studio.
 -- COS blended = (dépense Meta + Google) / CA net Shopify.
 -- ============================================================================
+-- NOTE test NL : le PRINCIPAL est « hors Pays-Bas » à partir du 03/07/2026
+--   (dépenses campagnes NL + CA livré NL sortis). Avant cette date, rien ne change.
+--   Les colonnes *_nl exposent le segment NL pour le tableau « NEDERLAND TEST ».
 CREATE OR REPLACE VIEW `lpl_cockpit.cockpit_daily` AS
-WITH meta_acc AS (   -- agrégat compte = somme des campagnes (robuste si pas de ligne ACCOUNT)
+WITH meta_acc AS (
   SELECT date, SUM(spend) AS meta_spend, SUM(purchase_value) AS meta_value,
-         SUM(purchases) AS meta_purchases
-  FROM `lpl_cockpit.meta_daily`
-  WHERE campaign_id IS NOT NULL
-  GROUP BY date
+    SUM(IF(REGEXP_CONTAINS(campaign_name, r'(^|[^A-Za-z])NL([^A-Za-z]|$)'), spend, 0)) AS meta_spend_nl
+  FROM `lpl_cockpit.meta_daily` WHERE campaign_id IS NOT NULL GROUP BY date
 ),
 google_acc AS (
   SELECT date, SUM(cost) AS google_spend, SUM(conversion_value) AS google_value,
-         SUM(conversions) AS google_conv
-  FROM `lpl_cockpit.google_daily`
-  GROUP BY date
+    SUM(IF(REGEXP_CONTAINS(campaign_name, r'(^|[^A-Za-z])NL([^A-Za-z]|$)'), cost, 0)) AS google_spend_nl
+  FROM `lpl_cockpit.google_daily` GROUP BY date
+),
+j AS (
+  SELECT s.date, s.net_sales, s.orders,
+    IF(s.date >= DATE '2026-07-03', COALESCE(s.net_sales_nl, 0), 0) AS ca_nl,
+    IF(s.date >= DATE '2026-07-03', COALESCE(s.orders_nl, 0), 0)    AS ord_nl,
+    COALESCE(m.meta_spend, 0)   AS meta_t,
+    COALESCE(g.google_spend, 0) AS google_t,
+    IF(s.date >= DATE '2026-07-03', COALESCE(m.meta_spend_nl, 0), 0)   AS meta_nl,
+    IF(s.date >= DATE '2026-07-03', COALESCE(g.google_spend_nl, 0), 0) AS google_nl,
+    COALESCE(m.meta_value, 0) AS meta_value, COALESCE(g.google_value, 0) AS google_value,
+    t.sessions,
+    IF(s.date >= DATE '2026-07-03', COALESCE(nlses.sessions, 0), 0) AS sess_nl,
+    t.visitors, t.conversion_rate
+  FROM `lpl_cockpit.shopify_orders_daily` s
+  LEFT JOIN meta_acc   m USING (date)
+  LEFT JOIN google_acc g USING (date)
+  LEFT JOIN `lpl_cockpit.shopify_traffic_daily` t USING (date)
+  LEFT JOIN `lpl_cockpit.ga4_nl_daily` nlses USING (date)
 )
 SELECT
-  s.date,
-  s.net_sales                                   AS ca_shopify,
-  s.orders                                      AS orders,
-  COALESCE(m.meta_spend, 0)                     AS meta_spend,
-  COALESCE(g.google_spend, 0)                   AS google_spend,
-  COALESCE(m.meta_spend, 0) + COALESCE(g.google_spend, 0) AS ad_spend_total,
-  COALESCE(m.meta_value, 0)                     AS meta_value,
-  COALESCE(g.google_value, 0)                   AS google_value,
-  SAFE_DIVIDE(COALESCE(m.meta_spend,0)+COALESCE(g.google_spend,0), s.net_sales) AS cos_blended,
-  SAFE_DIVIDE(s.net_sales, COALESCE(m.meta_spend,0)+COALESCE(g.google_spend,0)) AS roas_blended,
-  t.sessions,
-  t.visitors,
-  t.conversion_rate
-FROM `lpl_cockpit.shopify_orders_daily` s
-LEFT JOIN meta_acc   m USING (date)
-LEFT JOIN google_acc g USING (date)
-LEFT JOIN `lpl_cockpit.shopify_traffic_daily` t USING (date)
-ORDER BY s.date;
+  date,
+  (net_sales - ca_nl)                       AS ca_shopify,
+  (orders - ord_nl)                         AS orders,
+  (meta_t - meta_nl)                        AS meta_spend,
+  (google_t - google_nl)                    AS google_spend,
+  (meta_t - meta_nl + google_t - google_nl) AS ad_spend_total,
+  meta_value, google_value,
+  SAFE_DIVIDE(meta_t - meta_nl + google_t - google_nl, net_sales - ca_nl) AS cos_blended,
+  SAFE_DIVIDE(net_sales - ca_nl, meta_t - meta_nl + google_t - google_nl) AS roas_blended,
+  GREATEST(0, sessions - sess_nl) AS sessions, visitors, conversion_rate,
+  ca_nl                       AS ca_shopify_nl,
+  ord_nl                      AS orders_nl,
+  meta_nl                     AS meta_spend_nl,
+  google_nl                   AS google_spend_nl,
+  (meta_nl + google_nl)       AS ad_spend_nl,
+  SAFE_DIVIDE(meta_nl + google_nl, ca_nl) AS cos_nl,
+  SAFE_DIVIDE(ca_nl, meta_nl + google_nl) AS roas_nl
+FROM j
+ORDER BY date;

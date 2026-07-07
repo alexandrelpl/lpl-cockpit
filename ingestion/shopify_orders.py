@@ -65,6 +65,7 @@ query ($query: String!, $cursor: String) {
       displayFinancialStatus
       tags
       sourceName
+      shippingAddress { countryCodeV2 }
       customer { numberOfOrders }
       refunds { transactions(first: 5) { nodes { kind status amountSet { shopMoney { amount } } } } }
     }
@@ -163,7 +164,8 @@ def _analyze_order(order: dict) -> dict | None:
     else:
         cat = "others"
 
-    return {"net_sales": net_sales, "bucket": f"{cat}_{customer_type}"}
+    cc = ((order.get("shippingAddress") or {}).get("countryCodeV2") or "").upper()
+    return {"net_sales": net_sales, "bucket": f"{cat}_{customer_type}", "is_nl": cc == "NL"}
 
 
 def _fetch_range(since: str, until: str) -> dict[str, dict]:
@@ -183,10 +185,14 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
                 continue
             day = datetime.fromisoformat(order["createdAt"].replace("Z", "+00:00")) \
                 .astimezone(LOCAL_TZ).strftime("%Y-%m-%d")
-            d = stats.setdefault(day, {"net_sales": 0.0, "orders": 0, **{k: 0 for k in CATEGORY_KEYS}})
+            d = stats.setdefault(day, {"net_sales": 0.0, "orders": 0, "net_sales_nl": 0.0,
+                                       "orders_nl": 0, **{k: 0 for k in CATEGORY_KEYS}})
             d["net_sales"] += res["net_sales"]
             d["orders"]    += 1
             d[res["bucket"]] += 1
+            if res["is_nl"]:
+                d["net_sales_nl"] += res["net_sales"]
+                d["orders_nl"]    += 1
         has_next = orders["pageInfo"]["hasNextPage"]
         cursor   = orders["pageInfo"]["endCursor"]
         # Cadence adaptative : on n'attend QUE si le budget GraphQL Shopify est bas.
@@ -211,6 +217,8 @@ def _write_bq(stats: dict[str, dict], since: str, until: str) -> int:
             "date": day,
             "net_sales": round(d["net_sales"], 2),
             "orders": d["orders"],
+            "net_sales_nl": round(d.get("net_sales_nl", 0.0), 2),
+            "orders_nl": d.get("orders_nl", 0),
             "comptoir_new": d["comptoir_new"], "comptoir_existing": d["comptoir_existing"],
             "optique_new": d["optique_new"], "optique_existing": d["optique_existing"],
             "mm_new": d["mm_new"], "mm_existing": d["mm_existing"],
