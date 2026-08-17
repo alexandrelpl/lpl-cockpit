@@ -36,6 +36,13 @@ BQ_DATASET     = os.environ.get("BQ_DATASET", "lpl_cockpit")
 BQ_LOCATION    = os.environ.get("BQ_LOCATION", "EU")
 ALLOWED_DOMAIN = os.environ.get("ALLOWED_DOMAIN", "lepetitlunetier.com")
 ROI_FLOOR      = float(os.environ.get("ROI_FLOOR", "2"))
+# Exigences de SCALE (plus strictes que le plancher de coupe) :
+#  - on ne propose JAMAIS de scaler sous SCALE_FLOOR (inutile d'en parler) ;
+#  - on ne scale JAMAIS sur une dynamique qui se dégrade : si le ROAS baisse d'au moins
+#    |SCALE_TREND_BLOCK| % vs la fenêtre précédente, c'est qu'il y a un problème (ou au
+#    minimum que la tendance ne justifie pas d'ajouter du budget).
+SCALE_FLOOR       = float(os.environ.get("SCALE_FLOOR", "3"))
+SCALE_TREND_BLOCK = float(os.environ.get("SCALE_TREND_BLOCK", "-15"))
 META_TOKEN     = os.environ.get("META_ACCESS_TOKEN", "").strip()
 META_ACCOUNT   = os.environ.get("META_ACCOUNT_ID", "305450184")
 META_API       = os.environ.get("META_API_VERSION", "v21.0")
@@ -281,6 +288,9 @@ def api_periods():
     def block(label, is_current, cur, prev):
         cur_atv = (cur["ca"] / cur["orders"]) if cur["orders"] else None
         prev_atv = (prev["ca"] / prev["orders"]) if prev["orders"] else None
+        # CPA blended = dépense pub totale (Meta + Google) / nb de commandes Shopify
+        cur_cpa = (cur["spend"] / cur["orders"]) if cur["orders"] else None
+        prev_cpa = (prev["spend"] / prev["orders"]) if prev["orders"] else None
         return {"label": label, "current": is_current,
                 "sessions": cur["sessions"], "sessions_cmp": pct(cur["sessions"], prev["sessions"]),
                 "cvr": cur["cvr"], "cvr_cmp": pts(cur["cvr"], prev["cvr"]),
@@ -288,7 +298,8 @@ def api_periods():
                 "ca": cur["ca"], "ca_cmp": pct(cur["ca"], prev["ca"]),
                 "atv": cur_atv, "atv_cmp": pct(cur_atv, prev_atv),
                 "spend": cur["spend"], "spend_cmp": pct(cur["spend"], prev["spend"]),
-                "cos": cur["cos"], "cos_cmp": pts(cur["cos"], prev["cos"])}
+                "cos": cur["cos"], "cos_cmp": pts(cur["cos"], prev["cos"]),
+                "cpa": cur_cpa, "cpa_cmp": pct(cur_cpa, prev_cpa)}
 
     # --- Semaines (8 dernières, lundi->dimanche), vs semaine précédente ---
     weeks = []
@@ -428,6 +439,228 @@ def api_google():
                                "roas_7d": _trend(daily, "roas", 7)},
                     "nl": {"daily": nl_daily, "campaigns": nl_camp,
                            "roas3": _roas_window(nl_daily, "cost", "value", 3)}})
+
+
+# ---- API : alertes Google (même logique de pilotage que Meta, fenêtre 1/3/7 j) ----
+@app.route("/api/google/alerts")
+@login_required
+@bq_cache()
+def api_google_alerts():
+    """
+    Alertes de pilotage Google, sur le modèle de Meta :
+      fenêtre courante (1/3/7 j, jusqu'à hier) vs fenêtre précédente de même durée.
+    Mêmes règles de scale que Meta : jamais sous SCALE_FLOOR, jamais sur tendance
+    en baisse >= |SCALE_TREND_BLOCK| %. NL exclu (segment isolé).
+    """
+    try:
+        win = int(request.args.get("window", 3))
+        if win not in (1, 3, 7):
+            win = 3
+        # Dépense minimale pour juger : sous ce seuil, la diffusion est trop faible.
+        gate = float(os.environ.get("GOOGLE_ALERT_GATE_PER_DAY", "10")) * win
+        p = [bigquery.ScalarQueryParameter("w", "INT64", win),
+             bigquery.ScalarQueryParameter("w2", "INT64", win * 2)]
+
+        def windows(table: str, key: str, extra_sel: str = ""):
+            return q(f"""
+                SELECT {key} AS k, ANY_VALUE(campaign_name) AS campaign_name {extra_sel},
+                  SUM(IF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL @w DAY), cost, 0))             AS cur_cost,
+                  SUM(IF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL @w DAY), conversion_value, 0)) AS cur_value,
+                  SUM(IF(date >= DATE_SUB(CURRENT_DATE(), INTERVAL @w DAY), conversions, 0))      AS cur_conv,
+                  SUM(IF(date <  DATE_SUB(CURRENT_DATE(), INTERVAL @w DAY), cost, 0))             AS prev_cost,
+                  SUM(IF(date <  DATE_SUB(CURRENT_DATE(), INTERVAL @w DAY), conversion_value, 0)) AS prev_value
+                FROM {T(table)}
+                WHERE date BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL @w2 DAY)
+                              AND DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+                  AND NOT {NL_PRED}
+                GROUP BY k HAVING cur_cost > 0 OR prev_cost > 0""", p)
+
+        # Budgets quotidiens (snapshot) pour calculer le taux d'utilisation.
+        budgets = {r["campaign_name"]: r["daily_budget"]
+                   for r in q(f"SELECT campaign_name, daily_budget FROM {T('google_pmax_campaigns')}")}
+
+        def judge(r, budget=None):
+            cc, pc = r["cur_cost"] or 0, r["prev_cost"] or 0
+            roas = (r["cur_value"] / cc) if cc else None
+            prev_roas = (r["prev_value"] / pc) if pc else None
+            chg = ((roas - prev_roas) / prev_roas * 100) if (roas and prev_roas) else None
+            util = (cc / (win * budget) * 100) if budget else None
+            r.update({"cost": round(cc, 2), "roas": round(roas, 2) if roas else None,
+                      "roas_prev": round(prev_roas, 2) if prev_roas else None,
+                      "chg": round(chg, 1) if chg is not None else None,
+                      "conv": round(r["cur_conv"] or 0, 1),
+                      "cpa": round(cc / r["cur_conv"], 2) if r["cur_conv"] else None,
+                      "budget": budget, "util": round(util) if util is not None else None})
+            if cc < gate or roas is None:
+                return None
+            declining = chg is not None and chg <= SCALE_TREND_BLOCK
+            saturated = util is not None and util >= 90
+            under = util is not None and util <= 60
+            if roas < ROI_FLOOR:
+                return ("LOWER", f"ROAS {roas:.2f} < {ROI_FLOOR:.0f} → réduire le budget ou revoir la campagne.")
+            if declining and roas >= SCALE_FLOOR:
+                return ("HOLD_DECLINING",
+                        f"ROAS {roas:.2f} bon mais tendance en forte baisse ({chg:+.0f} % vs "
+                        f"{win} j précédents, ← {prev_roas:.2f}). Ne pas scaler.")
+            if roas >= SCALE_FLOOR and saturated and not declining:
+                return ("SCALE", f"ROAS {roas:.2f} ≥ {SCALE_FLOOR:.0f}, tendance OK"
+                                 f"{f' ({chg:+.0f} %)' if chg is not None else ''} et budget saturé "
+                                 f"(util {util:.0f} %) → augmenter ~20 % / 3-4 j.")
+            if under and roas >= ROI_FLOOR:
+                return ("REVIEW_UNDER", f"ROAS {roas:.2f} correct mais sous-délivré (util {util:.0f} %) → "
+                                        "budget trop haut ou ciblage/flux trop étroit.")
+            return None
+
+        camps, ag = [], []
+        for r in windows("google_daily", "campaign_id"):
+            v = judge(r, budgets.get(r["campaign_name"]))
+            if v:
+                r["action"], r["reason"] = v
+                camps.append(r)
+        for r in windows("google_asset_group_daily", "asset_group_name",
+                         ", ANY_VALUE(asset_group_name) AS asset_group_name"):
+            v = judge(r)
+            if v:
+                r["action"], r["reason"] = v
+                ag.append(r)
+
+        order = {"LOWER": 0, "HOLD_DECLINING": 1, "SCALE": 2, "REVIEW_UNDER": 3}
+        camps.sort(key=lambda x: (order.get(x["action"], 9), -x["cost"]))
+        ag.sort(key=lambda x: (order.get(x["action"], 9), -x["cost"]))
+        return jsonify({"ok": True, "window": win, "gate": gate, "roi_floor": ROI_FLOOR,
+                        "scale_floor": SCALE_FLOOR, "scale_trend_block": SCALE_TREND_BLOCK,
+                        "campaigns": camps, "asset_groups": ag[:20]})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : diagnostics PMax ----
+# Marque LPL (cannibalisation) et concurrents identifiés (conquête = plutôt bon signe).
+BRAND_RE = r"petit.?lunetier|lepetitlunetier"
+COMPET_RE = (r"jimmy.?fairly|lunettes?.?pour.?tous|afflelou|krys|grandoptical|"
+             r"generale.?d.?optique|optic.?2000|polette|izipizi|persol|ray.?ban")
+
+
+@app.route("/api/pmax")
+@login_required
+@bq_cache()
+def api_pmax():
+    """
+    Diagnostics PMax. Sources : google_pmax_search_cat (agrégat période), _products,
+    _assets, _asset_groups, _campaigns.
+
+    ⚠️ google_pmax_assets N'EST PAS ADDITIF (une impression = plusieurs assets, chacun
+    porte le coût complet). On ne l'utilise donc QUE pour : (a) compter les assets non
+    diffusables, (b) classer les assets ENTRE EUX au sein d'un même asset group +
+    field_type. Jamais pour un total.
+    """
+    try:
+        out: dict[str, object] = {"ok": True}
+
+        # 1. Cannibalisation marque + conquête concurrents, par campagne PMax.
+        out["search"] = q(f"""
+            WITH f AS (
+              SELECT campaign_name,
+                     REGEXP_CONTAINS(LOWER(category_label), r'{BRAND_RE}')  AS is_brand,
+                     REGEXP_CONTAINS(LOWER(category_label), r'{COMPET_RE}') AS is_compet,
+                     conversions, clicks, impressions
+              FROM {T('google_pmax_search_cat')}
+            )
+            SELECT campaign_name,
+                   ROUND(SUM(conversions), 1)                       AS conv_total,
+                   ROUND(SUM(IF(is_brand,  conversions, 0)), 1)     AS conv_brand,
+                   ROUND(SUM(IF(is_compet, conversions, 0)), 1)     AS conv_compet,
+                   SAFE_DIVIDE(SUM(IF(is_brand,  conversions, 0)), SUM(conversions))  AS pct_brand,
+                   SAFE_DIVIDE(SUM(IF(is_compet, conversions, 0)), SUM(conversions))  AS pct_compet,
+                   SUM(IF(is_brand, clicks, 0))                     AS clicks_brand
+            FROM f GROUP BY 1 ORDER BY pct_brand DESC""")
+
+        # 2. Top catégories de requêtes (drill-down), marquées marque/concurrent.
+        out["categories"] = q(f"""
+            SELECT campaign_name, category_label,
+                   impressions, clicks, ROUND(conversions, 1) AS conversions,
+                   REGEXP_CONTAINS(LOWER(category_label), r'{BRAND_RE}')  AS is_brand,
+                   REGEXP_CONTAINS(LOWER(category_label), r'{COMPET_RE}') AS is_compet
+            FROM {T('google_pmax_search_cat')}
+            WHERE category_label != '(non catégorisé)'
+            ORDER BY conversions DESC LIMIT 40""")
+
+        # 3. Concentration du spend produit (Pareto) + produits « zombies »
+        #    (dépense réelle mais zéro conversion sur 30 j).
+        prod = q(f"""
+            SELECT product_item_id, ANY_VALUE(product_title) AS title,
+                   SUM(cost) AS cost, SUM(conversions) AS conv,
+                   SUM(conversion_value) AS value, SUM(clicks) AS clicks
+            FROM {T('google_pmax_products')}
+            WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+            GROUP BY 1 HAVING cost > 0 ORDER BY cost DESC""")
+        tot_cost = sum(r["cost"] for r in prod) or 0.0
+        cum = 0.0
+        top20_n = max(1, round(len(prod) * 0.2)) if prod else 0
+        for i, r in enumerate(prod):
+            cum += r["cost"]
+            r["cum_pct"] = (cum / tot_cost) if tot_cost else None
+            r["roas"] = (r["value"] / r["cost"]) if r["cost"] else 0
+        out["products"] = {
+            "n": len(prod),
+            "total_cost": tot_cost,
+            "top20_share": (sum(r["cost"] for r in prod[:top20_n]) / tot_cost) if tot_cost else None,
+            "top": prod[:25],
+            # Zombies : > 20 € dépensés, 0 conversion sur 30 j -> candidats à l'exclusion.
+            "zombies": sorted([r for r in prod if r["conv"] == 0 and r["cost"] >= 20],
+                              key=lambda x: -x["cost"])[:25],
+        }
+
+        # 4. Assets non diffusables (primary_status != ELIGIBLE) par asset group.
+        out["assets_blocked"] = q(f"""
+            SELECT campaign_name, asset_group_name, field_type, primary_status,
+                   COUNT(DISTINCT asset_resource) AS n
+            FROM {T('google_pmax_assets')}
+            WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+              AND primary_status NOT IN ('ELIGIBLE', 'UNKNOWN', 'UNSPECIFIED')
+            GROUP BY 1,2,3,4 ORDER BY n DESC LIMIT 30""")
+
+        # 5. Classement des assets ENTRE EUX (comparatif intra asset group + field_type).
+        #    Les coûts ne sont pas additifs : on ne montre que le rang relatif.
+        out["assets_rank"] = q(f"""
+            WITH a AS (
+              SELECT campaign_name, asset_group_name, field_type, asset_resource,
+                     SUM(cost) AS cost, SUM(conversions) AS conv,
+                     SUM(conversion_value) AS value, SUM(impressions) AS impr
+              FROM {T('google_pmax_assets')}
+              WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+                AND primary_status = 'ELIGIBLE'
+              GROUP BY 1,2,3,4 HAVING cost > 0
+            )
+            SELECT *, SAFE_DIVIDE(value, cost) AS roas,
+                   ROW_NUMBER() OVER (PARTITION BY asset_group_name, field_type
+                                      ORDER BY SAFE_DIVIDE(value, cost)) AS rk_asc,
+                   COUNT(*) OVER (PARTITION BY asset_group_name, field_type) AS n_grp
+            FROM a QUALIFY n_grp >= 3 ORDER BY asset_group_name, field_type, rk_asc""")
+
+        # 6. Ad strength par asset group.
+        out["ad_strength"] = q(f"""
+            SELECT campaign_name, campaign_status, asset_group_name,
+                   asset_group_status, ad_strength
+            FROM {T('google_pmax_asset_groups')}
+            ORDER BY CASE ad_strength WHEN 'POOR' THEN 0 WHEN 'AVERAGE' THEN 1
+                                      WHEN 'GOOD' THEN 2 ELSE 3 END, campaign_name""")
+
+        # 7. tROAS configuré vs ROAS réellement réalisé (30 j).
+        out["troas"] = q(f"""
+            SELECT c.campaign_name, c.bidding_strategy, c.target_roas, c.daily_budget,
+                   SUM(g.cost) AS cost, SUM(g.conversion_value) AS value,
+                   SAFE_DIVIDE(SUM(g.conversion_value), SUM(g.cost)) AS roas_real,
+                   SAFE_DIVIDE(SUM(g.cost), NULLIF(30 * c.daily_budget, 0)) AS budget_util
+            FROM {T('google_pmax_campaigns')} c
+            LEFT JOIN {T('google_daily')} g
+              ON g.campaign_id = c.campaign_id
+             AND g.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+            GROUP BY 1,2,3,4 HAVING cost > 0 ORDER BY cost DESC""")
+
+        return jsonify(out)
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
 
 
 @app.route("/api/google/asset-groups")
@@ -956,6 +1189,8 @@ def api_nl():
                 a["cvr"] = round(a["orders"] / a["sessions"], 4) if a["sessions"] else None
                 a["cos"] = round(a["spend"] / a["ca"], 4) if a["ca"] else None
                 a["roas"] = round(a["ca"] / a["spend"], 2) if a["spend"] else None
+                # CPA blended NL = dépense pub NL / commandes NL
+                a["cpa"] = round(a["spend"] / a["orders"], 2) if a["orders"] else None
                 for k2 in ("ca", "meta", "google", "spend"):
                     a[k2] = round(a[k2], 2)
             out[gr] = items
@@ -1236,18 +1471,36 @@ def api_meta_alerts():
                         action = "LOWER"
                         reason = f"ROAS {rr:.2f}, aucun ad fautif isolé → réduire le budget ~20 % ou mettre en pause."
                 else:
+                    # Tendance : on ne scale pas sur un ROAS qui se dégrade nettement.
+                    declining = chg is not None and chg <= SCALE_TREND_BLOCK
                     if cut and roas_excl is not None and roas_excl > rr + 0.1:
-                        action = "CUT_THEN_SCALE"
-                        reason = (f"ROAS {rr:.2f} bridé par {len(cut)} ad(s) faible(s) (sans eux ≈ {roas_excl:.2f}) : "
-                                  "couper, puis envisager de scaler.")
+                        # « puis scaler » seulement si le ROAS nettoyé atteint vraiment le seuil de scale.
+                        if roas_excl >= SCALE_FLOOR and not declining:
+                            action = "CUT_THEN_SCALE"
+                            reason = (f"ROAS {rr:.2f} bridé par {len(cut)} ad(s) faible(s) (sans eux ≈ {roas_excl:.2f}, "
+                                      f"≥ {SCALE_FLOOR:.0f}) : couper, puis envisager de scaler.")
+                        else:
+                            action = "CUT_DRAINERS"
+                            reason = (f"ROAS {rr:.2f} bridé par {len(cut)} ad(s) faible(s) (sans eux ≈ {roas_excl:.2f}) : "
+                                      "couper. Pas de scale à ce stade.")
                     elif starved:
                         action = "FEED_STARVED"
                         reason = (f"ROAS {rr:.2f} OK mais {len(starved)} ad(s) qui performaient ne sont plus alimentés. "
                                   "Augmenter le budget de l'adset, ou segmenter pour les relancer.")
                     elif saturated and winners:
-                        action = "SCALE"
-                        reason = (f"ROAS {rr:.2f} ≥ {F:.0f} et budget saturé"
-                                  f"{f' (util {util}%)' if util is not None else ''} → augmenter ~20 % / 3-4 j.")
+                        if declining:
+                            # ROAS suffisant ET budget saturé, mais la dynamique se dégrade :
+                            # on refuse explicitement de recommander un scale.
+                            action = "HOLD_DECLINING"
+                            reason = (f"ROAS {rr:.2f} et budget saturé, MAIS tendance en forte baisse "
+                                      f"({chg:+.0f} % vs période précédente, ← {pr:.2f}). "
+                                      "Ne pas scaler : comprendre d'abord la dégradation.")
+                        elif rr >= SCALE_FLOOR:
+                            action = "SCALE"
+                            reason = (f"ROAS {rr:.2f} ≥ {SCALE_FLOOR:.0f}, tendance non dégradée"
+                                      f"{f' ({chg:+.0f} %)' if chg is not None else ''} et budget saturé"
+                                      f"{f' (util {util}%)' if util is not None else ''} → augmenter ~20 % / 3-4 j.")
+                        # ROAS entre le plancher de coupe et SCALE_FLOOR : rien à dire, on n'émet pas d'alerte.
                     elif under:
                         action = "REVIEW_UNDER"
                         reason = (f"ROAS {rr:.2f} bon mais sous-délivré"
@@ -1265,14 +1518,16 @@ def api_meta_alerts():
                                    if (roas_excl is not None and rr < F and winners)
                                    else f"draine le budget (ROAS adset {rr:.2f})")
 
-        order = {"LOWER": 0, "CUT_DRAINERS": 1, "FEED_STARVED": 2, "CUT_THEN_SCALE": 3, "SCALE": 4, "REVIEW_UNDER": 5}
+        order = {"LOWER": 0, "CUT_DRAINERS": 1, "HOLD_DECLINING": 2, "FEED_STARVED": 3,
+                 "CUT_THEN_SCALE": 4, "SCALE": 5, "REVIEW_UNDER": 6}
         adset_actions.sort(key=lambda x: (order.get(x["action"], 9), -x["spend"]))
         ads_to_cut.sort(key=lambda x: -x["spend"])
         starved_ads.sort(key=lambda x: -x["prev_spend"])
         revived_ads.sort(key=lambda x: -x["spend"])
         rising.sort(key=lambda x: -x["rise_pct"])
         top_ads.sort(key=lambda x: -x["roas"])
-        result = {"ok": True, "roi_floor": ROI_FLOOR, "window": win, "gate": gate,
+        result = {"ok": True, "roi_floor": ROI_FLOOR, "scale_floor": SCALE_FLOOR,
+                  "scale_trend_block": SCALE_TREND_BLOCK, "window": win, "gate": gate,
                   "adset_actions": adset_actions[:30], "ads_to_cut": ads_to_cut[:30],
                   "starved_ads": starved_ads[:20], "revived_ads": revived_ads[:20],
                   "rising_adsets": rising[:12], "top_ads": top_ads[:12], "ignored_ads": ignored_ads}
@@ -1350,6 +1605,333 @@ def api_targets():
                         "ca": block(ca_target, ca_mtd),
                         "spend": block(spend_target, spend_mtd),
                         "cos": cos})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : Performance produit (web + retail unifiés par shopify_variant_id) ----
+@app.route("/api/products")
+@login_required
+@bq_cache()
+def api_products():
+    try:
+        days = int(request.args.get("days", 14))
+        if days not in (1, 3, 7, 14, 28, 90):
+            days = 14
+        cat = (request.args.get("category") or "all").strip()
+        genders = [g for g in (request.args.get("genders") or "").split(",") if g]
+        dtag = (request.args.get("date_tag") or "").strip()
+        search = (request.args.get("q") or "").strip().lower()
+        oos_only = request.args.get("oos") == "1"
+        channel = (request.args.get("channel") or "all").strip()
+        if channel not in ("all", "web", "retail"):
+            channel = "all"
+
+        params = [bigquery.ScalarQueryParameter("d", "INT64", days)]
+        conds = []
+        if cat in ("Optique", "Solaire", "Autre"):
+            conds.append("c.category = @cat")
+            params.append(bigquery.ScalarQueryParameter("cat", "STRING", cat))
+        if genders:
+            conds.append("c.gender IN UNNEST(@genders)")
+            params.append(bigquery.ArrayQueryParameter("genders", "STRING", genders))
+        if dtag:
+            conds.append("@dtag IN UNNEST(c.date_tags)")
+            params.append(bigquery.ScalarQueryParameter("dtag", "STRING", dtag))
+        if search:
+            conds.append("(LOWER(c.title) LIKE @q OR LOWER(c.sku) LIKE @q)")
+            params.append(bigquery.ScalarQueryParameter("q", "STRING", f"%{search}%"))
+        # Par défaut : produits ayant vendu sur la période (sur le canal choisi). En mode OOS :
+        # produits en rupture (web indispo et/ou boutiques retail à 0), qu'ils aient vendu ou non.
+        # Le canal (all/web/retail) pilote le filtre « a vendu », la rupture affichée et le tri.
+        # NB : le WHERE ne peut PAS référencer les alias de SELECT (web_units…) -> expressions brutes.
+        if oos_only:
+            oos_expr = {"web": "(s.web_available = FALSE)",
+                        "retail": "COALESCE(s.retail_loc_oos, 0) > 0"}.get(
+                channel, "((s.web_available = FALSE) OR COALESCE(s.retail_loc_oos, 0) > 0)")
+            having = "s.shopify_variant_id IS NOT NULL AND " + oos_expr
+        else:
+            having = {"web": "COALESCE(w.u, 0) > 0",
+                      "retail": "COALESCE(rt.u, 0) > 0"}.get(
+                channel, "(COALESCE(w.u, 0) + COALESCE(rt.u, 0)) > 0")
+        # Vélocité brute = unités du canal ÷ jours réellement couverts sur la fenêtre.
+        # Le web ne remonte qu'à sa 1re date -> sur les fenêtres longues on divise par les
+        # jours dispo, pas par le nominal (sinon vélocité web sous-estimée). Retail idem.
+        cov = q(f"""SELECT (SELECT MIN(date) FROM {T('web_sales_daily')}) web_first,
+                           (SELECT MIN(date) FROM {T('retail_sales_daily')}) retail_first""")[0]
+        _today = date.today(); _yest = _today - timedelta(days=1)
+        _wstart = _today - timedelta(days=days)
+
+        def _cov_days(first):
+            if not first:
+                return float(days)
+            start = max(_wstart, first)
+            return float(max(1, min(days, (_yest - start).days + 1)))
+        web_days = _cov_days(cov["web_first"])
+        retail_days = _cov_days(cov["retail_first"])
+        params.append(bigquery.ScalarQueryParameter("web_days", "FLOAT64", web_days))
+        params.append(bigquery.ScalarQueryParameter("retail_days", "FLOAT64", retail_days))
+        # Tri par UNITÉS vendues du canal actif (= chiffre principal affiché).
+        order = {"web": "COALESCE(w.u,0) DESC",
+                 "retail": "COALESCE(rt.u,0) DESC"}.get(
+            channel, "(COALESCE(w.u,0) + COALESCE(rt.u,0)) DESC")
+        where = ("WHERE " + " AND ".join(conds)) if conds else ""
+
+        rows = q(f"""
+            WITH w AS (
+              SELECT shopify_variant_id, SUM(units) u, SUM(revenue) r
+              FROM {T('web_sales_daily')}
+              WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL @d DAY) AND date < CURRENT_DATE()
+              GROUP BY 1),
+            rt AS (
+              SELECT shopify_variant_id, SUM(units) u, SUM(revenue) r
+              FROM {T('retail_sales_daily')}
+              WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL @d DAY) AND date < CURRENT_DATE()
+              GROUP BY 1),
+            inc AS (
+              SELECT UPPER(TRIM(sku)) sku, MIN(delivery_date) d
+              FROM {T('product_incoming')}
+              WHERE delivery_date >= CURRENT_DATE() AND sku IS NOT NULL AND TRIM(sku) != ''
+              GROUP BY 1)
+            SELECT c.shopify_variant_id, c.sku, c.title, c.category, c.gender, c.price,
+                   c.status, c.published_online, c.date_tags,
+                   COALESCE(w.u, 0)  AS web_units,
+                   COALESCE(w.r, 0)  AS web_rev,
+                   COALESCE(rt.u, 0) AS retail_units,
+                   COALESCE(rt.r, 0) AS retail_rev,
+                   COALESCE(w.u, 0)  / @web_days    AS web_vel,
+                   COALESCE(rt.u, 0) / @retail_days AS retail_vel,
+                   s.warehouse_available, s.retail_loc_total, s.retail_loc_oos,
+                   s.web_available,
+                   s.shopify_variant_id IS NOT NULL AS has_stock,
+                   inc.d AS incoming_date
+            FROM {T('product_catalog')} c
+            LEFT JOIN w  ON w.shopify_variant_id  = c.shopify_variant_id
+            LEFT JOIN rt ON rt.shopify_variant_id = c.shopify_variant_id
+            LEFT JOIN {T('product_stock')} s ON s.shopify_variant_id = c.shopify_variant_id
+            LEFT JOIN inc ON inc.sku = UPPER(TRIM(c.sku))
+            {where}
+            {"AND" if where else "WHERE"} ({having})
+            ORDER BY {order}
+            LIMIT 400""", params)
+
+        for r in rows:
+            wu, ru = r["web_units"] or 0, r["retail_units"] or 0
+            r["total_units"] = round(wu + ru, 2)
+            r["total_rev"] = round((r["web_rev"] or 0) + (r["retail_rev"] or 0), 2)
+            r["web_units"] = round(wu, 2)
+            r["retail_units"] = round(ru, 2)
+            r["web_rev"] = round(r["web_rev"] or 0, 2)
+            r["retail_rev"] = round(r["retail_rev"] or 0, 2)
+            wv, rv = r.get("web_vel") or 0, r.get("retail_vel") or 0
+            r["web_vel"] = round(wv, 3)
+            r["retail_vel"] = round(rv, 3)
+            r["total_vel"] = round(wv + rv, 3)
+            # OOS uniquement si le stock est connu (scope read_inventory présent).
+            hs = bool(r.get("has_stock"))
+            r["oos_web"] = hs and (r["web_available"] is False)
+            r["oos_retail"] = hs and (r["retail_loc_oos"] or 0) > 0
+            r["incoming_date"] = r["incoming_date"].isoformat() if r.get("incoming_date") else None
+
+        # Liste des tags datés pour le menu déroulant de filtre.
+        dtags = [x["t"] for x in q(f"""
+            SELECT t, COUNT(*) n FROM {T('product_catalog')}, UNNEST(date_tags) t
+            GROUP BY t ORDER BY n DESC LIMIT 60""")]
+
+        return jsonify({"ok": True, "days": days, "count": len(rows),
+                        "channel": channel, "web_days": int(web_days), "retail_days": int(retail_days),
+                        "rows": rows, "date_tags": dtags})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : Ventes Braderies (canal Syncio/thebradery, hors CA principal) ----
+@app.route("/api/braderie")
+@login_required
+@bq_cache()
+def api_braderie():
+    try:
+        end = date.today() - timedelta(days=1)   # J-1 : on ignore le jour partiel
+        p = [bigquery.ScalarQueryParameter("end", "DATE", end.isoformat())]
+
+        def series(trunc, n_days):
+            # label = date de DÉBUT de période (le front la formate via week/monthLabel).
+            return q(f"""SELECT CAST(DATE_TRUNC(date, {trunc}) AS STRING) AS label,
+                                SUM(orders) AS cmd, SUM(net_sales) AS ca
+                         FROM {T('braderie_daily')}
+                         WHERE date <= @end AND date >= DATE_SUB(@end, INTERVAL {n_days} DAY)
+                         GROUP BY label ORDER BY label DESC""", p)
+
+        day = q(f"""SELECT CAST(date AS STRING) AS label, orders AS cmd, net_sales AS ca
+                    FROM {T('braderie_daily')}
+                    WHERE date <= @end AND date >= DATE_SUB(@end, INTERVAL 60 DAY)
+                    ORDER BY date DESC""", p)
+        return jsonify({"ok": True, "day": day,
+                        "week": series('WEEK(MONDAY)', 210), "month": series('MONTH', 760)})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : Test Europe — détail par pays (v1 = demande, spend non ventilé) ----
+@app.route("/api/europe-countries")
+@login_required
+@bq_cache()
+def api_europe_countries():
+    try:
+        # Détail par pays PAR PÉRIODE (piloté par le grain global côté front). Plancher 03/07.
+        end = date.today() - timedelta(days=1)          # J-1
+        start = date(2026, 7, 3)                          # début du segment Test Europe
+        p = [bigquery.ScalarQueryParameter("start", "DATE", start.isoformat()),
+             bigquery.ScalarQueryParameter("end", "DATE", end.isoformat())]
+
+        def series(trunc):
+            return q(f"""
+                WITH s AS (SELECT CAST(DATE_TRUNC(date, {trunc}) AS STRING) label, country, SUM(sessions) sessions
+                           FROM {T('ga4_country_daily')} WHERE date BETWEEN @start AND @end GROUP BY 1, 2),
+                     o AS (SELECT CAST(DATE_TRUNC(date, {trunc}) AS STRING) label, country, SUM(orders) orders, SUM(ca) ca
+                           FROM {T('shopify_country_daily')} WHERE date BETWEEN @start AND @end GROUP BY 1, 2)
+                SELECT label, country,
+                       SUM(COALESCE(sessions, 0)) AS sessions,
+                       SUM(COALESCE(orders, 0))   AS orders,
+                       SUM(COALESCE(ca, 0))       AS ca
+                FROM s FULL OUTER JOIN o USING (label, country)
+                WHERE country IS NOT NULL
+                GROUP BY label, country ORDER BY label DESC""", p)
+
+        return jsonify({"ok": True, "start": start.isoformat(),
+                        "day": series('DAY'), "week": series('WEEK(MONDAY)'), "month": series('MONTH')})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : LPL Club (dataset shopify_data_eu ; le SA web doit y avoir BQ Data Viewer) ----
+CLUB_DS = "shopify-data-ltv.shopify_data_eu"
+
+
+@app.route("/api/lpl-club/adoption")
+@login_required
+@bq_cache()
+def api_lpl_adoption():
+    """Taux d'adhésion web = nouvelles adhésions ÷ commandes web, série par grain."""
+    try:
+        def series(trunc, n_days):
+            return q(f"""
+                WITH adh AS (
+                  SELECT email, MIN(adh_date) AS d FROM (
+                    SELECT LOWER(email) email, DATE(created_at) adh_date FROM `{CLUB_DS}.lpl_club_web_orders`
+                    UNION ALL
+                    SELECT LOWER(email) email, DATE(order_date) adh_date
+                    FROM `{CLUB_DS}.custom_transactions_history`
+                    WHERE LOWER(shipping_method) LIKE '%lpl club%' AND net_sales > 0
+                  ) GROUP BY email),
+                a AS (SELECT CAST(DATE_TRUNC(d, {trunc}) AS STRING) label, COUNT(*) adh FROM adh
+                      WHERE d >= GREATEST(DATE_SUB(CURRENT_DATE(), INTERVAL {n_days} DAY), DATE '2026-03-01')
+                        AND d < CURRENT_DATE() GROUP BY 1),
+                o AS (SELECT CAST(DATE_TRUNC(DATE(order_date), {trunc}) AS STRING) label, COUNT(*) orders
+                      FROM `{CLUB_DS}.custom_transactions_history`
+                      WHERE net_sales > 0
+                        AND DATE(order_date) >= GREATEST(DATE_SUB(CURRENT_DATE(), INTERVAL {n_days} DAY), DATE '2026-03-01')
+                        AND DATE(order_date) < CURRENT_DATE() GROUP BY 1)
+                SELECT label, SUM(COALESCE(adh, 0)) adh, SUM(COALESCE(orders, 0)) orders
+                FROM a FULL OUTER JOIN o USING (label)
+                GROUP BY label ORDER BY label DESC""")
+        return jsonify({"ok": True, "day": series('DAY', 60),
+                        "week": series('WEEK(MONDAY)', 210), "month": series('MONTH', 760)})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+COHORT_START = "2026-04-01"   # lancement club : on ne compare que les clients acquis depuis
+
+
+@app.route("/api/lpl-club/cohort")
+@login_required
+@bq_cache()
+def api_lpl_cohort():
+    """Réachat LPL Club vs Sans Club (V2 : cohorte des clients dont la 1re commande >= lancement)."""
+    try:
+        rows = q(f"""
+            WITH club_web AS (
+              SELECT DISTINCT LOWER(email) email FROM (
+                SELECT email FROM `{CLUB_DS}.lpl_club_web_orders`
+                UNION ALL
+                SELECT email FROM `{CLUB_DS}.custom_transactions_history`
+                WHERE LOWER(shipping_method) LIKE '%lpl club%' AND net_sales > 0)),
+            -- V2 : HAVING = clients dont la 1re commande web >= lancement club (groupes comparables).
+            web_stats AS (
+              SELECT LOWER(email) email, COUNT(*) nb_commandes, SUM(net_sales) ca_total, AVG(net_sales) panier_moy
+              FROM `{CLUB_DS}.custom_transactions_history` WHERE net_sales > 0 GROUP BY email
+              HAVING MIN(DATE(order_date)) >= '{COHORT_START}')
+            SELECT CASE WHEN c.email IS NOT NULL THEN 'LPL Club' ELSE 'Sans Club' END segment,
+                   COUNT(*) nb_clients,
+                   ROUND(AVG(w.nb_commandes), 2) commandes_moy,
+                   ROUND(COUNTIF(w.nb_commandes >= 2) / COUNT(*) * 100, 1) taux_reachat,
+                   ROUND(COUNTIF(w.nb_commandes >= 3) / COUNT(*) * 100, 1) taux_3plus,
+                   ROUND(AVG(w.ca_total), 0) ca_moy_client,
+                   ROUND(AVG(w.panier_moy), 0) panier_moy
+            FROM web_stats w LEFT JOIN club_web c ON w.email = c.email
+            GROUP BY segment ORDER BY segment DESC""")
+        return jsonify({"ok": True, "cohort_start": COHORT_START, "rows": rows})
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+# ---- API : token Meta en self-service (tout utilisateur connecté = @lepetitlunetier.com) ----
+def _meta_debug(tok):
+    try:
+        r = requests.get(f"https://graph.facebook.com/{META_API}/debug_token",
+                         params={"input_token": tok, "access_token": tok}, timeout=15)
+        j = (r.json() or {}).get("data", {})
+        return {"valid": bool(j.get("is_valid")), "expires_at": j.get("expires_at"),
+                "scopes": j.get("scopes") or []}
+    except Exception as e:  # noqa: BLE001
+        return {"valid": False, "error": str(e)}
+
+
+def _exp_iso(exp):
+    if not exp:            # None ou 0 -> pas d'expiration
+        return None
+    import datetime as _dt
+    return _dt.datetime.utcfromtimestamp(int(exp)).date().isoformat()
+
+
+@app.route("/api/meta-token/status")
+@login_required
+def meta_token_status():
+    st = _meta_debug(META_TOKEN)
+    return jsonify({"ok": True, "valid": st.get("valid", False),
+                    "expires_at": _exp_iso(st.get("expires_at")),
+                    "never_expires": st.get("expires_at") == 0,
+                    "scopes": st.get("scopes", []), "account": META_ACCOUNT})
+
+
+@app.route("/api/meta-token", methods=["POST"])
+@login_required
+def meta_token_update():
+    try:
+        token = ((request.get_json(silent=True) or {}).get("token")
+                 or request.form.get("token") or "").strip()
+        if len(token) < 30:
+            return jsonify({"ok": False, "error": "Token vide ou trop court."}), 200
+        # 1) validation : accès réel au compte publicitaire
+        chk = requests.get(f"https://graph.facebook.com/{META_API}/act_{META_ACCOUNT}",
+                           params={"fields": "name", "access_token": token}, timeout=20)
+        if chk.status_code != 200:
+            msg = ((chk.json() or {}).get("error", {}) or {}).get("message", chk.text[:180])
+            return jsonify({"ok": False, "error": f"Refusé par Meta : {msg}"}), 200
+        # 2) nouvelle version du secret (le SA doit avoir secretmanager.versions.add)
+        from google.cloud import secretmanager
+        sm = secretmanager.SecretManagerServiceClient()
+        sm.add_secret_version(request={
+            "parent": f"projects/{BQ_PROJECT}/secrets/META_ACCESS_TOKEN",
+            "payload": {"data": token.encode("utf-8")}})
+        # 3) prise en compte immédiate pour cette instance web ; le Job relira :latest la nuit
+        global META_TOKEN
+        META_TOKEN = token
+        st = _meta_debug(token)
+        return jsonify({"ok": True, "account_name": (chk.json() or {}).get("name"),
+                        "expires_at": _exp_iso(st.get("expires_at")),
+                        "never_expires": st.get("expires_at") == 0})
     except Exception as e:  # noqa: BLE001
         return jsonify({"ok": False, "error": str(e)}), 200
 

@@ -49,6 +49,13 @@ LOCAL_TZ      = ZoneInfo(os.environ.get("TIMEZONE", "Europe/Paris"))
 
 GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/{API_VERSION}/graphql.json"
 ALLOWED_SOURCES = {"web", "just", "5448991"}
+# Segment « Test Europe » : commandes livrées dans ces pays (isolées du COS principal).
+# (Champs stockés en *_nl pour raisons historiques.)
+EUROPE_TEST_CC = {"AT", "DE", "ES", "IT", "NL", "PT"}
+# Braderie = canal Syncio OU email thebradery (les deux en OR). Suivi HORS CA principal.
+BRADERIE_EMAIL  = "logistique@thebradery.com"
+BRADERIE_APP    = "syncio multi store sync"
+BRADERIE_SOURCE = "1615469"
 
 _SESSION = requests.Session()   # connexion HTTP persistante (keep-alive)
 _THROTTLE: dict = {}            # dernier throttleStatus GraphQL renvoyé par Shopify
@@ -65,6 +72,8 @@ query ($query: String!, $cursor: String) {
       displayFinancialStatus
       tags
       sourceName
+      email
+      app { name }
       shippingAddress { countryCodeV2 }
       customer { numberOfOrders }
       refunds { transactions(first: 5) { nodes { kind status amountSet { shopMoney { amount } } } } }
@@ -134,14 +143,20 @@ def _analyze_order(order: dict) -> dict | None:
     tags = (order.get("tags") or "")
     tags = " ".join(tags).lower() if isinstance(tags, list) else str(tags).lower()
     source = (order.get("sourceName") or "").lower()
+    email = (order.get("email") or "").strip().lower()
+    app_name = ((order.get("app") or {}).get("name") or "").strip().lower()
 
-    excluded = (
-        "alan" in tags or "wholesale" in tags or "b2b" in tags
-        or order.get("displayFinancialStatus") == "VOIDED"
-        or original_total == 0
-        or source not in ALLOWED_SOURCES
-    )
-    if excluded:
+    # Garde-fou commun aux deux canaux : commande annulée ou à 0 -> ignorée.
+    if order.get("displayFinancialStatus") == "VOIDED" or original_total == 0:
+        return None
+
+    # Braderie (canal Syncio OU email thebradery) : sortie du CA principal, suivie à part.
+    if email == BRADERIE_EMAIL or app_name == BRADERIE_APP or source == BRADERIE_SOURCE:
+        return {"channel": "braderie", "net_sales": net_sales}
+
+    # Canal principal : mêmes exclusions qu'avant (tags B2B, source autorisée).
+    if ("alan" in tags or "wholesale" in tags or "b2b" in tags
+            or source not in ALLOWED_SOURCES):
         return None
 
     # Segmentation client allégée via le scalaire numberOfOrders (au lieu de la sous-requête
@@ -165,13 +180,16 @@ def _analyze_order(order: dict) -> dict | None:
         cat = "others"
 
     cc = ((order.get("shippingAddress") or {}).get("countryCodeV2") or "").upper()
-    return {"net_sales": net_sales, "bucket": f"{cat}_{customer_type}", "is_nl": cc == "NL"}
+    return {"channel": "main", "net_sales": net_sales, "cc": cc,
+            "bucket": f"{cat}_{customer_type}", "is_nl": cc in EUROPE_TEST_CC}
 
 
 def _fetch_range(since: str, until: str) -> dict[str, dict]:
     """Agrège les commandes incluses par date locale (Europe/Paris)."""
     query_string = f"created_at:>={since}T00:00:00Z AND created_at:<={until}T23:59:59Z"
     stats: dict[str, dict] = {}
+    braderie: dict[str, dict] = {}   # jour -> {orders, net_sales} (canal Braderie, hors CA principal)
+    country: dict[tuple, dict] = {}  # (jour, pays) -> {orders, ca} (Test Europe, détail par pays)
     cursor, has_next, page = None, True, 0
     while has_next:
         orders = _graphql(query_string, cursor)
@@ -185,6 +203,11 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
                 continue
             day = datetime.fromisoformat(order["createdAt"].replace("Z", "+00:00")) \
                 .astimezone(LOCAL_TZ).strftime("%Y-%m-%d")
+            if res["channel"] == "braderie":
+                b = braderie.setdefault(day, {"net_sales": 0.0, "orders": 0})
+                b["net_sales"] += res["net_sales"]
+                b["orders"]    += 1
+                continue
             d = stats.setdefault(day, {"net_sales": 0.0, "orders": 0, "net_sales_nl": 0.0,
                                        "orders_nl": 0, **{k: 0 for k in CATEGORY_KEYS}})
             d["net_sales"] += res["net_sales"]
@@ -193,6 +216,9 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
             if res["is_nl"]:
                 d["net_sales_nl"] += res["net_sales"]
                 d["orders_nl"]    += 1
+                ck = country.setdefault((day, res["cc"]), {"orders": 0, "ca": 0.0})
+                ck["orders"] += 1
+                ck["ca"]     += res["net_sales"]
         has_next = orders["pageInfo"]["hasNextPage"]
         cursor   = orders["pageInfo"]["endCursor"]
         # Cadence adaptative : on n'attend QUE si le budget GraphQL Shopify est bas.
@@ -202,7 +228,7 @@ def _fetch_range(since: str, until: str) -> dict[str, dict]:
                 time.sleep(min(2.0, (_LAST_COST - avail) / restore))
         else:
             time.sleep(0.2)
-    return stats
+    return stats, braderie, country
 
 
 def _write_bq(stats: dict[str, dict], since: str, until: str) -> int:
@@ -228,11 +254,35 @@ def _write_bq(stats: dict[str, dict], since: str, until: str) -> int:
     return bq_io.load_replace_window(client, table, rows, since, until)
 
 
+def _write_braderie(braderie: dict[str, dict], since: str, until: str) -> int:
+    """Remplace la fenêtre [since, until] de braderie_daily (canal Syncio/thebradery)."""
+    client = bigquery.Client(project=BQ_PROJECT)
+    table = f"{BQ_PROJECT}.{BQ_DATASET}.braderie_daily"
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [{"date": day, "orders": d["orders"],
+             "net_sales": round(d["net_sales"], 2), "updated_at": now}
+            for day, d in sorted(braderie.items())]
+    return bq_io.load_replace_window(client, table, rows, since, until)
+
+
+def _write_country(country: dict[tuple, dict], since: str, until: str) -> int:
+    """Remplace la fenêtre [since, until] de shopify_country_daily (détail Test Europe par pays)."""
+    client = bigquery.Client(project=BQ_PROJECT)
+    table = f"{BQ_PROJECT}.{BQ_DATASET}.shopify_country_daily"
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [{"date": day, "country": cc, "orders": d["orders"],
+             "ca": round(d["ca"], 2), "updated_at": now}
+            for (day, cc), d in sorted(country.items())]
+    return bq_io.load_replace_window(client, table, rows, since, until)
+
+
 def ingest(since: str, until: str) -> int:
     print(f"[shopify] fetch {since} -> {until}")
-    stats = _fetch_range(since, until)
+    stats, braderie, country = _fetch_range(since, until)
     n = _write_bq(stats, since, until)
-    print(f"[shopify] {n} jours écrits dans shopify_orders_daily")
+    nb = _write_braderie(braderie, since, until)
+    nc = _write_country(country, since, until)
+    print(f"[shopify] {n} jours · {nb} jours Braderie · {nc} lignes pays (Test Europe)")
     return n
 
 

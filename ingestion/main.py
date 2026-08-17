@@ -23,8 +23,9 @@ import traceback
 
 from ingestion import (shopify_orders, shopify_customers, customers_metrics, shopify_price_mix,
                        shopify_gender, shopify_traffic, meta_ads, meta_adset_budgets, google_ads,
-                       google_asset_groups, google_sheet, ga4_traffic, ga4_nl, ga4_cro,
-                       shopify_inventory, sessions_sheet, bq_setup, bq_io)
+                       google_asset_groups, google_pmax, google_sheet, ga4_traffic, ga4_nl,
+                       ga4_cro, shopify_inventory, shopify_products, shopify_line_items,
+                       retail_sales, product_incoming, sessions_sheet, bq_setup, bq_io)
 
 SHOPIFY_REFRESH_DAYS = int(os.environ.get("SHOPIFY_REFRESH_DAYS", "40"))
 ADS_REFRESH_DAYS     = int(os.environ.get("ADS_REFRESH_DAYS", "14"))
@@ -41,12 +42,18 @@ def daily_refresh() -> dict:
         # (l'ancienne lecture via Sheet `google_sheet` reste dispo en secours si besoin)
         ("google",          lambda: google_ads.refresh(ADS_REFRESH_DAYS)),
         ("google_assets",   lambda: google_asset_groups.refresh(ADS_REFRESH_DAYS)),
+        # PMax : catégories de requêtes, produits, assets, snapshots config.
+        ("google_pmax",     lambda: google_pmax.refresh(ADS_REFRESH_DAYS)),
         # Sessions via GA4 (source autonome). Fenêtre 3 j seulement -> l'historique plus ancien
         # reste figé en base = continuité conservée même après la rétention 14 mois de GA4.
         ("sessions",        lambda: ga4_traffic.refresh(3)),
         ("sessions_nl",     lambda: ga4_nl.refresh(40)),
         ("cro_ga4",         lambda: ga4_cro.refresh(int(os.environ.get("CRO_REFRESH_DAYS", "35")))),
         ("inventory",       lambda: shopify_inventory.refresh()),
+        ("products",        lambda: shopify_products.refresh()),
+        ("web_sales",       lambda: shopify_line_items.refresh(SHOPIFY_REFRESH_DAYS)),
+        ("retail_sales",    lambda: retail_sales.refresh()),
+        ("product_incoming", lambda: product_incoming.refresh()),
         ("shopify_orders",  lambda: shopify_orders.refresh(SHOPIFY_REFRESH_DAYS)),
         ("customers",       lambda: shopify_customers.refresh(45)),
         ("customers_metrics", lambda: customers_metrics.refresh()),

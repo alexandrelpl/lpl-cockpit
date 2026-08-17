@@ -1,0 +1,1023 @@
+year_month,source_medium,sessions,engaged_sessions,purchases,revenue,users
+202602,google / organic,69514,49364,1476,104513.64,45969
+202603,google / organic,69497,50031,1141,86031.71,46329
+202605,google / organic,60419,43644,1343,92953.15,40327
+202604,google / organic,54941,39575,848,64511.99,37358
+202601,google / organic,52073,36602,1073,79793.22,35499
+202507,google / organic,45088,28994,390,41615.68,26528
+202509,google / organic,42859,28000,530,49141.54,24253
+202603,(direct) / (none),42842,27955,449,28478.89,36040
+202508,google / organic,41449,26481,388,42327.23,23935
+202602,(direct) / (none),41439,25719,532,33510.55,33567
+202606,google / organic,38545,26867,896,65781.43,25005
+202601,(direct) / (none),37563,23343,466,28249.77,31187
+202605,(direct) / (none),37101,21975,470,27919.81,31195
+202511,google / cpc,35016,25284,477,39367.97,23821
+202604,(direct) / (none),33075,21247,339,18877.34,27598
+202510,google / organic,26269,17105,268,26717.35,15991
+202601,(not set),23634,1703,166,13045.38,21734
+202510,google / cpc,23062,16622,252,22829.46,15787
+202606,(direct) / (none),21806,12210,307,18730.7,19124
+202511,google / organic,19663,12621,193,16583.65,12311
+202508,facebook / ppc,16591,9344,8,1284.18,12434
+202509,facebook / ppc,16496,9652,16,1280.45,12334
+202603,(not set),15796,4202,250,20635.29,13480
+202604,(not set),14833,4544,217,15458.09,12473
+202507,facebook / ppc,14268,8105,15,1637.37,10880
+202605,(not set),13863,3642,316,22770.77,11259
+202510,facebook / ppc,13513,7383,12,939.18,9642
+202506,google / organic,12943,8799,121,11724.08,8501
+202606,(not set),12918,2474,296,20842.72,10880
+202602,(not set),11583,3491,240,18618.0,9523
+202511,facebook / ppc,11349,5183,20,1496.75,8092
+202602,facebook / ppc,11300,5184,142,9481.88,6721
+202511,(direct) / (none),9549,5953,121,7259.88,6514
+202507,google / cpc,9356,6248,32,2847.14,7125
+202603,facebook / ppc,9325,4455,93,6718.04,5576
+202602,google / cpc,9248,6442,235,17591.56,6354
+202601,google / cpc,9241,5307,137,10384.7,5625
+202507,(direct) / (none),9048,5892,105,8568.6,6334
+202508,google / cpc,8412,5843,42,3748.57,6444
+202509,(direct) / (none),7704,5388,139,10045.44,5723
+202508,(direct) / (none),7548,5110,110,8181.42,5531
+202603,google / cpc,7355,5127,130,10007.74,5322
+202605,facebook / ppc,7337,3175,94,5963.09,4314
+202510,(direct) / (none),6773,4251,111,6039.58,4654
+202602,sendcloud / email,6718,2834,0,0.0,3106
+202509,google / cpc,6626,4688,67,4590.36,4777
+202604,facebook / ppc,6507,3027,52,4006.66,3896
+202511,facebook / paid,5881,2930,9,615.35,5015
+202603,sendcloud / email,5393,2449,0,0.0,2284
+202601,facebook / ppc,5262,2202,70,4859.01,3497
+202606,facebook / ppc,5016,1907,74,4997.86,3031
+202604,google / cpc,4642,3196,78,5616.59,3191
+202511,l.instagram.com / referral,4379,3655,20,1909.36,4119
+202506,facebook / ppc,4234,2253,2,118.09,3455
+202601,sendcloud / email,4056,1689,0,0.0,2067
+202506,(direct) / (none),4031,2686,48,4957.48,2861
+202510,(not set),3425,0,2,127.64,3463
+202508,(not set),3238,1,8,826.23,3225
+202506,google / cpc,3040,2109,14,1449.62,2414
+202512,google / cpc,2533,1653,57,4710.33,1323
+202603,Klaviyo / email,2465,1351,43,3365.36,1348
+202512,facebook / ppc,2345,664,9,998.78,1479
+202606,google / cpc,2081,1150,60,4519.69,1540
+202511,(not set),2027,531,21,2147.39,1897
+202512,google / organic,1935,1052,32,2389.91,916
+202605,facebook / paid,1847,741,29,1981.89,1042
+202507,l.instagram.com / referral,1830,1538,3,324.64,1707
+202605,Klaviyo / email,1768,856,31,2562.6,939
+202605,google / cpc,1678,1148,38,2354.65,1180
+202508,l.instagram.com / referral,1508,1328,6,710.98,1433
+202507,(not set),1455,289,5,374.84,1368
+202509,(not set),1404,282,13,1288.35,1298
+202604,Klaviyo / email,1305,607,11,624.69,669
+202509,l.instagram.com / referral,1300,1115,8,1190.36,1212
+202606,facebook / paid,1281,467,25,1959.37,771
+202512,(direct) / (none),1263,511,43,1015.77,790
+202507,Klaviyo / email,1255,717,6,399.17,663
+202510,l.instagram.com / referral,1228,1016,4,347.98,1161
+202509,Klaviyo / email,1211,699,2,189.99,675
+202512,facebook / paid,1126,373,1,189.0,790
+202602,lepetitlunetier.com / referral,1081,519,39,0.0,950
+202603,lepetitlunetier.com / referral,998,460,41,0.0,875
+202604,facebook / paid,996,512,10,1048.6,632
+202506,(not set),939,441,10,807.26,798
+202602,ig / social,920,599,15,1092.96,686
+202602,bing / organic,886,731,33,3070.66,641
+202511,ig / social,880,787,5,344.3,815
+202606,Klaviyo / email,863,403,14,1166.96,424
+202508,Klaviyo / email,859,441,2,238.09,439
+202511,crm / whatsapp_,833,688,11,1129.28,719
+202605,ig / social,805,453,18,1150.97,567
+202603,bing / organic,804,676,19,1661.85,595
+202506,Klaviyo / email,792,522,4,485.88,487
+202603,ig / social,736,430,15,1316.96,565
+202604,ig / social,726,452,10,759.89,554
+202605,bing / organic,672,546,32,2685.76,483
+202606,(data not available),669,33,6,652.98,665
+202602,Klaviyo / email,660,299,14,647.95,313
+202605,lepetitlunetier.com / referral,649,284,28,0.0,601
+202509,bing / organic,634,502,23,2979.51,419
+202604,bing / organic,632,511,15,1200.79,475
+202604,lepetitlunetier.com / referral,613,301,27,0.0,561
+202510,bing / organic,608,501,11,801.19,453
+202506,l.instagram.com / referral,595,485,1,100.0,564
+202601,bing / organic,588,493,16,1088.94,437
+202601,lepetitlunetier.com / referral,563,318,24,0.0,479
+202602,ecosia.org / organic,549,394,17,1149.96,342
+202511,(data not available),534,477,4,233.58,506
+202511,bing / organic,524,436,11,971.9,391
+202606,lepetitlunetier.com / referral,515,224,25,0.0,453
+202606,ig / social,512,239,17,1057.97,356
+202603,ecosia.org / organic,509,355,5,312.59,309
+202508,Instagram_stories / Influenceur,504,383,0,0.0,476
+202507,bing / organic,502,431,9,1706.29,384
+202507,AMT / Influenceur,494,231,0,0.0,418
+202605,ecosia.org / organic,481,330,7,403.0,284
+202606,bing / organic,466,376,21,1509.73,345
+202601,ig / social,461,261,5,347.97,327
+202601,(data not available),450,388,7,596.99,443
+202604,ecosia.org / organic,444,317,8,420.69,261
+202508,bing / organic,441,356,9,952.68,318
+202506,affilae / affiliation,426,283,11,971.06,286
+202602,facebook / paid,405,173,3,167.0,243
+202511,m.facebook.com / referral,401,333,3,295.03,364
+202601,ecosia.org / organic,382,273,10,970.97,244
+202511,ecosia.org / organic,380,264,4,580.04,218
+202604,sendcloud / email,370,155,0,0.0,199
+202507,Instagram_stories / Influenceur,363,296,2,122.29,334
+202507,m.facebook.com / referral,356,255,0,0.0,324
+202509,ecosia.org / organic,353,241,1,51.99,219
+202510,ecosia.org / organic,351,254,2,203.0,206
+202601,facebook / paid,346,144,2,83.99,235
+202507,lepetitlunetier.aftership.com / referral,341,198,0,0.0,127
+202511,Klaviyo / email,340,193,2,135.04,176
+202507,ecosia.org / organic,339,237,2,168.0,221
+202508,ecosia.org / organic,338,243,3,447.0,207
+202510,Klaviyo / email,330,185,2,123.64,186
+202510,m.facebook.com / referral,316,263,0,0.0,299
+202509,m.facebook.com / referral,307,244,1,0.0,275
+202509,Instagram_stories / Influenceur,296,234,3,203.64,277
+202510,le-petit-lunetier.typeform.com / referral,296,129,5,870.62,64
+202603,facebook / paid,290,117,2,183.99,187
+202508,m.facebook.com / referral,289,221,4,204.62,275
+202510,(data not available),269,240,1,54.99,261
+202606,ecosia.org / organic,260,184,8,524.0,161
+202506,AMT / Influenceur,245,103,1,46.64,193
+202509,chatgpt.com / (not set),242,186,0,0.0,200
+202509,le-petit-lunetier.typeform.com / referral,236,77,3,541.1,57
+202509,Facebook / Paid Social,223,175,0,0.0,208
+202508,lepetitlunetier.aftership.com / referral,213,133,3,268.09,96
+202508,Facebook / Paid Social,209,167,0,0.0,200
+202507,Facebook / Paid Social,207,164,0,0.0,199
+202601,Klaviyo / email,206,123,1,94.99,88
+202511,lepetitlunetier.com / referral,199,106,21,0.0,181
+202508,AMT / Influenceur,196,79,0,0.0,164
+202511,le-petit-lunetier.typeform.com / referral,195,108,8,1547.29,62
+202507,ma-reduc.com / referral,190,100,6,572.58,82
+202512,lepetitlunetier.com / referral,186,107,20,0.0,153
+202510,lepetitlunetier.com / referral,184,126,28,0.0,157
+202509,lepetitlunetier.com / referral,181,112,14,0.0,158
+202508,ma-reduc.com / referral,175,91,7,586.58,82
+202510,ma-reduc.com / referral,173,83,11,1200.44,80
+202509,ma-reduc.com / referral,167,87,6,947.57,64
+202507,influenceur.promo / referral,164,70,6,527.14,90
+202507,OrderlyEmails / email,160,83,7,990.49,86
+202510,chatgpt.com / (not set),159,117,0,0.0,138
+202602,socialmedia / influence,159,105,4,178.99,74
+202507,lepetitlunetier.com / referral,152,90,13,0.0,127
+202601,socialmedia / influence,144,88,2,138.0,97
+202511,chatgpt.com / (not set),143,109,0,0.0,134
+202509,lepetitlunetier.aftership.com / referral,142,89,0,0.0,60
+202508,lepetitlunetier.com / referral,140,86,12,0.0,126
+202506,bing / organic,139,107,4,695.29,109
+202602,(data not available),139,112,7,437.99,136
+202511,l.facebook.com / referral,138,118,0,0.0,124
+202509,influenceur.promo / referral,134,51,7,934.47,54
+202507,l.facebook.com / referral,133,108,0,0.0,116
+202508,l.facebook.com / referral,133,125,0,0.0,122
+202507,le-petit-lunetier.typeform.com / referral,126,62,6,1558.2,51
+202509,l.facebook.com / referral,122,109,0,0.0,111
+202603,(data not available),120,84,7,369.99,114
+202511,ma-reduc.com / referral,119,70,3,149.07,56
+202602,shop.app / referral,115,45,0,0.0,71
+202510,l.facebook.com / referral,113,97,0,0.0,103
+202511,influenceur.promo / referral,113,56,6,437.81,52
+202508,le-petit-lunetier.typeform.com / referral,112,49,2,521.65,50
+202510,Facebook / Paid Social,110,76,0,0.0,102
+202511,IGShopping / Social,110,68,0,0.0,96
+202508,chatgpt.com / (not set),109,82,1,238.0,88
+202507,affilae / affiliation,102,46,3,216.09,53
+202508,OrderlyEmails / email,97,56,2,169.1,48
+202605,ONLINE - Footer site - Welcome / email,92,55,4,253.9,49
+202509,AMT / Influenceur,91,23,0,0.0,82
+202510,influenceur.promo / referral,91,49,6,447.92,39
+202506,ecosia.org / organic,90,63,0,0.0,59
+202603,qwant.com / organic,88,69,5,400.98,55
+202510,OrderlyEmails / email,86,56,6,985.47,42
+202603,duckduckgo / organic,86,64,1,89.0,60
+202606,ONLINE - Footer site - Welcome / email,85,46,6,723.88,46
+202605,OrderlyEmails / email,84,40,14,1815.45,29
+202509,OrderlyEmails / email,82,44,7,870.48,44
+202602,redirect-euw1.ppro.com / referral,80,29,1,52.99,39
+202507,fr.search.yahoo.com / referral,79,64,2,142.99,54
+202511,fr.search.yahoo.com / referral,79,62,5,394.37,50
+202508,facebook-SiteLink / ppc,78,47,0,0.0,77
+202508,influenceur.promo / referral,78,45,3,305.3,47
+202512,ig / social,78,53,1,69.3,62
+202603,shop.app / referral,78,36,0,0.0,47
+202507,IGShopping / Social,77,42,0,0.0,63
+202508,judgeme / email,76,29,0,0.0,42
+202507,google / product_sync,75,56,0,0.0,63
+202509,ONLINE - Footer site - Welcome / email,74,36,1,47.09,34
+202509,chatgpt.com / referral,74,51,1,15.49,55
+202510,chatgpt.com / referral,72,51,3,183.73,55
+202511,OrderlyEmails / email,72,43,2,352.0,42
+202507,chatgpt.com / (not set),71,43,0,0.0,60
+202510,facebook / paid,71,28,0,0.0,44
+202506,m.facebook.com / referral,70,54,0,0.0,68
+202507,qwant.com / organic,70,53,2,168.0,41
+202512,admin.shopify.com / referral,70,48,0,0.0,3
+202605,redirect-euw1.ppro.com / referral,69,30,2,149.99,24
+202509,fr.search.yahoo.com / referral,68,53,2,130.99,48
+202510,fr.search.yahoo.com / referral,68,50,1,51.99,50
+202512,le-petit-lunetier.typeform.com / referral,67,50,0,0.0,12
+202605,qwant.com / organic,67,49,1,54.99,43
+202511,pinterest.com / referral,66,38,0,0.0,63
+202508,fr.search.yahoo.com / referral,64,47,1,89.0,51
+202510,admin.shopify.com / referral,64,47,0,0.0,3
+202606,socialmedia / influence,64,23,2,120.99,52
+202508,google / product_sync,63,55,0,0.0,54
+202601,ONLINE - Footer site - Welcome / email,63,41,3,150.99,33
+202509,qwant.com / organic,62,47,0,0.0,41
+202510,pinterest.com / referral,61,28,0,0.0,58
+202512,ecosia.org / organic,61,41,5,873.0,28
+202602,OrderlyEmails / email,61,40,12,857.93,23
+202507,judgeme / email,60,28,0,0.0,42
+202510,IGShopping / Social,60,32,0,0.0,49
+202511,duckduckgo / organic,60,44,0,0.0,45
+202512,bing / organic,60,35,3,327.07,27
+202604,(data not available),60,43,2,187.0,56
+202506,le-petit-lunetier.typeform.com / referral,59,29,1,59.0,29
+202601,duckduckgo / organic,59,42,1,49.0,42
+202602,ONLINE - Footer site - Welcome / email,59,28,1,118.0,33
+202605,duckduckgo / organic,59,38,1,69.0,36
+202508,ONLINE - Footer site - Welcome / email,58,32,0,0.0,27
+202603,OrderlyEmails / email,58,38,7,755.48,18
+202603,redirect-euw1.ppro.com / referral,58,18,1,66.99,31
+202604,qwant.com / organic,58,49,1,49.0,46
+202507,ONLINE - Footer site - Welcome / email,57,35,2,144.09,33
+202509,savoo.fr / referral,57,23,3,194.98,14
+202602,duckduckgo / organic,57,38,1,31.99,42
+202506,Facebook / Paid Social,56,46,0,0.0,55
+202506,ma-reduc.com / referral,56,26,0,0.0,25
+202509,IGShopping / Social,56,28,0,0.0,43
+202511,judgeme / email,56,30,0,0.0,31
+202512,Klaviyo / email,56,29,0,0.0,29
+202601,judgeme / email,56,16,1,89.0,34
+202602,qwant.com / organic,56,46,1,198.0,42
+202603,chatgpt.com / (not set),56,37,2,149.98,38
+202604,duckduckgo / organic,56,45,1,158.0,43
+202507,commeuncamion.com / referral,55,38,0,0.0,40
+202506,lepetitlunetier.aftership.com / referral,54,30,0,0.0,27
+202507,(data not available),54,45,0,0.0,47
+202601,OrderlyEmails / email,54,30,8,479.46,21
+202603,socialmedia / influence,53,33,0,0.0,48
+202508,youtube.com / referral,52,42,1,80.1,37
+202511,chatgpt.com / referral,52,40,0,0.0,42
+202603,ONLINE - Footer site - Welcome / email,52,32,3,198.99,29
+202508,(data not available),51,43,0,0.0,49
+202511,savoo.fr / referral,51,26,4,297.26,20
+202507,chatgpt.com / referral,50,31,0,0.0,30
+202509,judgeme / email,50,16,0,0.0,33
+202510,duckduckgo / organic,50,32,0,0.0,31
+202510,judgeme / email,50,25,0,0.0,34
+202508,qwant.com / organic,49,33,0,0.0,34
+202509,duckduckgo / organic,49,39,0,0.0,45
+202510,qwant.com / organic,49,38,2,126.09,37
+202510,zipchat / chat_bubble,49,19,1,258.2,18
+202605,shop.app / referral,49,32,3,181.0,26
+202511,admin.shopify.com / referral,48,38,0,0.0,4
+202601,shop.app / referral,48,20,0,0.0,39
+202604,admin.shopify.com / referral,48,35,0,0.0,5
+202604,socialmedia / influence,48,30,1,44.1,20
+202508,duckduckgo / organic,47,35,1,79.0,33
+202602,chatgpt.com / (not set),46,27,1,588.0,33
+202511,ONLINE - Footer site - Welcome / email,44,37,0,0.0,27
+202603,app.sendcloud.com / referral,44,24,0,0.0,3
+202605,chatgpt.com / (not set),44,28,0,0.0,33
+202509,poulpeo.com / referral,43,27,1,44.64,9
+202601,redirect.ppro.com / referral,43,18,2,105.98,21
+202512,judgeme / email,42,36,0,0.0,10
+202606,OrderlyEmails / email,42,23,5,700.98,18
+202512,crm / whatsapp_,41,23,0,0.0,27
+202508,IGShopping / Social,40,29,0,0.0,39
+202508,chatgpt.com / referral,40,29,1,129.0,28
+202512,l.facebook.com / referral,40,21,0,0.0,22
+202606,duckduckgo / organic,40,28,0,0.0,29
+202507,instagram.com / referral,39,24,0,0.0,39
+202509,facebook-SiteLink / ppc,39,18,0,0.0,35
+202511,AMT / Influenceur,39,5,0,0.0,38
+202511,qwant.com / organic,39,35,0,0.0,33
+202510,AMT / Influenceur,38,7,0,0.0,38
+202601,qwant.com / organic,38,25,0,0.0,26
+202604,OrderlyEmails / email,38,20,7,641.88,15
+202506,Instagram_stories / Influenceur,37,23,0,0.0,36
+202606,shop.app / referral,37,16,1,154.0,11
+202604,ONLINE - Footer site - Welcome / email,36,20,0,0.0,23
+202507,duckduckgo / organic,35,27,0,0.0,27
+202509,google / product_sync,35,26,0,0.0,30
+202510,ONLINE - Footer site - Welcome / email,35,21,0,0.0,24
+202511,zipchat / chat_bubble,35,15,2,563.1,16
+202506,OrderlyEmails / email,34,23,1,65.0,18
+202507,facebook.com / referral,33,30,0,0.0,33
+202510,lepetitlunetier.aftership.com / referral,32,19,0,0.0,20
+202602,judgeme / referral,32,27,0,0.0,1
+202509,(data not available),31,26,0,0.0,30
+202510,savoo.fr / referral,31,13,4,183.72,16
+202512,(not set),31,0,0,0.0,26
+202606,(not set),31,0,0,0.0,25
+202606,chatgpt.com / ai-assistant,31,19,0,0.0,24
+202506,google / product_sync,30,25,0,0.0,26
+202508,facebook.com / referral,30,23,0,0.0,28
+202601,chatgpt.com / (not set),30,17,1,49.0,21
+202601,l.facebook.com / referral,30,21,0,0.0,26
+202602,admin.shopify.com / referral,30,16,0,0.0,3
+202506,influenceur.promo / referral,29,9,1,46.64,15
+202512,m.facebook.com / referral,29,23,0,0.0,25
+202508,commeuncamion.com / referral,28,19,0,0.0,21
+202604,chatgpt.com / (not set),28,18,1,54.99,25
+202606,back-in-stock / email,28,11,2,103.99,9
+202506,lepetitlunetier.com / referral,27,18,3,0.0,26
+202601,thebradery.com / referral,27,7,0,0.0,2
+202603,judgeme / referral,27,23,0,0.0,1
+202507,poulpeo.com / referral,26,15,1,237.0,13
+202509,facebook.com / referral,26,21,0,0.0,23
+202511,search.brave.com / referral,26,19,1,93.99,20
+202601,m.facebook.com / referral,26,12,0,0.0,22
+202601,shop_app / (not set),26,11,0,0.0,13
+202603,admin.shopify.com / referral,26,17,0,0.0,4
+202506,ONLINE - Footer site - Welcome / email,25,19,1,44.1,13
+202506,fr.search.yahoo.com / referral,25,21,1,46.64,20
+202507,youtube.com / referral,25,16,0,0.0,24
+202509,zipchat / chat_bubble,25,14,3,292.0,10
+202601,crm / whatsapp_,25,19,5,150.99,20
+202601,judgeme / referral,25,21,0,0.0,2
+202602,crm / whatsapp_,25,19,1,0.0,18
+202508,poulpeo.com / referral,24,14,2,164.65,10
+202509,pinterest.com / referral,24,12,0,0.0,23
+202512,OrderlyEmails / email,24,14,1,39.39,17
+202601,admin.shopify.com / referral,24,16,0,0.0,3
+202604,Facebook / Paid Social,24,12,0,0.0,7
+202506,(data not available),23,21,0,0.0,23
+202506,IGShopping / Social,23,14,0,0.0,22
+202506,judgeme / email,23,11,0,0.0,16
+202506,l.facebook.com / referral,23,20,0,0.0,22
+202601,l.instagram.com / referral,23,9,0,0.0,19
+202601,poulpeo.com / referral,23,19,1,388.0,5
+202507,l.instagram.com / Infl uenceur,22,18,1,46.64,22
+202509,admin.shopify.com / referral,22,17,0,0.0,3
+202509,search.brave.com / referral,22,15,0,0.0,15
+202512,savoo.fr / referral,22,6,0,0.0,3
+202601,IGShopping / Social,22,11,0,0.0,19
+202508,savoo.fr / referral,21,12,1,208.0,12
+202508,search.brave.com / referral,21,14,1,53.99,16
+202511,app.zipchat.ai / referral,21,17,0,0.0,1
+202511,mesenvies.fr / referral,21,17,1,74.25,15
+202511,redirect.ppro.com / referral,21,14,1,40.74,4
+202604,back-in-stock / email,21,14,0,0.0,3
+202606,qwant.com / organic,21,18,0,0.0,17
+202509,facebook / paid,20,16,0,0.0,12
+202511,brevo / email,20,13,0,0.0,15
+202605,(data not available),20,17,3,172.99,20
+202506,fr.igraal.com / referral,19,14,4,262.19,11
+202509,redirect.ppro.com / referral,19,14,0,0.0,7
+202511,google / product_sync,19,19,0,0.0,19
+202604,redirect-euw1.ppro.com / referral,19,5,0,0.0,11
+202509,fr.pinterest.com / referral,18,11,0,0.0,12
+202509,youtube.com / referral,18,10,1,48.09,13
+202511,adsmanager.facebook.com / referral,18,12,0,0.0,1
+202602,ma-reduc.com / referral,18,15,0,0.0,1
+202602,psbe-le-petit-lunetier.odoo.com / referral,18,11,0,0.0,1
+202603,IGShopping / Social,18,6,0,0.0,9
+202604,shop.app / referral,18,4,0,0.0,11
+202510,Instagram_stories / Influenceur,17,4,0,0.0,14
+202511,klaviyo.com / referral,17,12,0,0.0,1
+202511,lepetitlunetier.aftership.com / referral,17,9,1,55.99,10
+202511,listy.fr / referral,17,14,0,0.0,12
+202511,youtube.com / referral,17,14,0,0.0,14
+202512,ma-reduc.com / referral,17,10,0,0.0,8
+202506,instagram.com / referral,16,8,0,0.0,15
+202510,google / product_sync,16,12,0,0.0,14
+202511,fr.igraal.com / referral,16,8,2,104.04,14
+202511,fr.pinterest.com / referral,16,13,0,0.0,14
+202606,chatgpt.com / (not set),16,7,1,89.0,10
+202606,redirect-euw1.ppro.com / referral,16,6,1,114.0,9
+202506,qwant.com / organic,15,11,0,0.0,11
+202508,search.lilo.org / referral,15,12,0,0.0,13
+202509,klarna / referral,15,10,3,590.19,10
+202510,listy.fr / referral,15,11,1,80.1,5
+202510,search.brave.com / referral,15,11,0,0.0,13
+202510,statics.teams.cdn.office.net / referral,15,8,0,0.0,6
+202511,le-petit-lunetier.shipping-portal.com / referral,15,10,0,0.0,11
+202511,milirose.com / referral,15,6,0,0.0,10
+202506,chatgpt.com / (not set),14,11,0,0.0,13
+202506,chatgpt.com / referral,14,12,0,0.0,13
+202506,poulpeo.com / referral,14,7,0,0.0,7
+202507,search.lilo.org / referral,14,10,0,0.0,9
+202510,fr.pinterest.com / referral,14,9,0,0.0,11
+202507,klarna / referral,13,10,0,0.0,12
+202507,l.wl.co / referral,13,6,0,0.0,4
+202509,commeuncamion.com / referral,13,9,0,0.0,11
+202509,search.lilo.org / referral,13,12,0,0.0,12
+202510,le-petit-lunetier.shipping-portal.com / referral,13,7,0,0.0,9
+202510,search.lilo.org / referral,13,9,0,0.0,9
+202510,youtube.com / referral,13,10,0,0.0,11
+202601,chatgpt.com / referral,13,8,0,0.0,7
+202601,le-petit-lunetier.typeform.com / referral,13,8,0,0.0,4
+202603,m.facebook.com / referral,13,2,0,0.0,12
+202605,Facebook / Paid Social,13,8,0,0.0,3
+202507,dealabs.com / referral,12,8,0,0.0,4
+202507,search.brave.com / referral,12,9,0,0.0,10
+202508,fr.igraal.com / referral,12,4,0,0.0,7
+202508,instagram.com / referral,12,9,1,129.0,12
+202509,le-petit-lunetier.shipping-portal.com / referral,12,8,0,0.0,5
+202511,lepetitlunetier.couponasion.com / referral,12,5,0,0.0,2
+202512,fr.search.yahoo.com / referral,12,10,1,89.0,5
+202601,listy.fr / referral,12,5,0,0.0,1
+202602,m.facebook.com / referral,12,4,0,0.0,12
+202602,redirect.ppro.com / referral,12,4,2,124.99,7
+202602,xxxxx / xxxxx,12,5,0,0.0,4
+202605,back-in-stock / email,12,5,1,98.0,4
+202510,commeuncamion.com / referral,11,7,0,0.0,10
+202510,klarna / referral,11,7,0,0.0,9
+202511,shop_app / (not set),11,1,0,0.0,7
+202512,influenceur.promo / referral,11,4,0,0.0,8
+202512,mail.google.com / referral,11,8,0,0.0,1
+202602,IGShopping / Social,11,5,0,0.0,9
+202602,shop_app / (not set),11,8,0,0.0,7
+202605,(not set) / paid,11,6,0,0.0,8
+202507,forum.borasification.com / referral,10,9,0,0.0,8
+202508,yahoo / organic,10,7,0,0.0,7
+202508,zipchat / chat_bubble,10,6,0,0.0,5
+202509,listy.fr / referral,10,8,0,0.0,7
+202510,redirect.ppro.com / referral,10,5,0,0.0,7
+202512,ONLINE - Footer site - Welcome / email,10,3,0,0.0,3
+202512,l.instagram.com / referral,10,4,0,0.0,7
+202601,redirect-euw1.ppro.com / referral,10,2,1,55.99,7
+202603,psbe-le-petit-lunetier.odoo.com / referral,10,5,0,0.0,2
+202604,(not set) / paid,10,3,0,0.0,9
+202605,crm / whatsapp_,10,6,0,0.0,8
+202507,facebook / paid,9,4,0,0.0,8
+202507,fr.igraal.com / referral,9,4,1,80.1,7
+202508,admin.upservices.upfeat.io / referral,9,7,0,0.0,1
+202508,fr.pinterest.com / referral,9,8,0,0.0,8
+202508,klarna / referral,9,8,0,0.0,6
+202509,Account Activation / email,9,4,0,0.0,4
+202509,admin.upservices.upfeat.io / referral,9,8,0,0.0,2
+202509,l.wl.co / referral,9,4,0,0.0,3
+202511,perplexity / (not set),9,5,0,0.0,8
+202601,ma-reduc.com / referral,9,4,1,89.0,4
+202602,app.sendcloud.com / referral,9,6,0,0.0,1
+202604,google / product_sync,9,3,0,0.0,7
+202506,duckduckgo / organic,8,5,0,0.0,7
+202506,facebook.com / referral,8,6,0,0.0,8
+202508,dealabs.com / referral,8,6,0,0.0,6
+202508,lm.facebook.com / referral,8,5,0,0.0,6
+202508,pinterest.com / referral,8,3,0,0.0,8
+202510,public.fr / referral,8,2,0,0.0,3
+202510,thegoodlist.fr / referral,8,6,0,0.0,6
+202510,yahoo / organic,8,7,2,127.64,5
+202511,klarna / referral,8,5,0,0.0,7
+202511,search.lilo.org / referral,8,5,0,0.0,7
+202512,le-petit-lunetier.shipping-portal.com / referral,8,6,1,89.0,4
+202601,fr.search.yahoo.com / referral,8,6,0,0.0,5
+202601,test-store20.myshopify.com / referral,8,7,0,0.0,2
+202506,adsmanager.facebook.com / Paid Social,7,5,0,0.0,1
+202507,admin.shopify.com / referral,7,7,0,0.0,1
+202507,shop_app / (not set),7,2,0,0.0,3
+202508,cap3000.com / referral,7,3,0,0.0,3
+202508,lepetitlunetier.couponasion.com / referral,7,4,1,140.65,1
+202509,dealabs.com / referral,7,7,0,0.0,2
+202509,marieclaire.be / referral,7,7,0,0.0,7
+202510,ebuyclub.com / referral,7,3,0,0.0,4
+202511,l.wl.co / referral,7,5,0,0.0,3
+202511,marieclaire.fr / referral,7,3,0,0.0,3
+202511,poulpeo.com / referral,7,5,1,229.1,3
+202511,youcare.world / referral,7,5,0,0.0,5
+202601,web-mail.laposte.net / referral,7,5,1,49.0,1
+202603,yahoo / organic,7,4,0,0.0,4
+202604,ecommerce-gateway.mollie.com / referral,7,2,1,55.99,2
+202604,m.facebook.com / referral,7,2,0,0.0,7
+202604,yahoo / organic,7,6,0,0.0,6
+202605,yahoo / organic,7,6,0,0.0,6
+202506,dealspotr.com / referral,6,2,0,0.0,3
+202507,admin.upservices.upfeat.io / referral,6,6,0,0.0,1
+202507,fr.pinterest.com / referral,6,5,0,0.0,5
+202507,linkedin.com / referral,6,4,0,0.0,6
+202507,mail.google.com / referral,6,2,0,0.0,4
+202507,outlook.live.com / referral,6,4,0,0.0,5
+202507,perplexity / (not set),6,5,0,0.0,6
+202508,marieclaire.fr / referral,6,4,0,0.0,5
+202508,statics.teams.cdn.office.net / referral,6,5,0,0.0,5
+202509,fr.igraal.com / referral,6,2,0,0.0,4
+202509,linktr.ee / referral,6,2,0,0.0,6
+202509,perplexity.ai / referral,6,2,0,0.0,3
+202509,youcare.world / referral,6,5,0,0.0,3
+202510,admin.upservices.upfeat.io / referral,6,6,0,0.0,1
+202510,app.judge.me / referral,6,2,0,0.0,1
+202510,poulpeo.com / referral,6,2,1,129.0,4
+202511,Facebook / Paid Social,6,4,0,0.0,6
+202511,admin.upservices.upfeat.io / referral,6,6,0,0.0,4
+202511,commeuncamion.com / referral,6,5,0,0.0,6
+202511,emea.search.yahoo.com / referral,6,3,0,0.0,1
+202511,public.fr / referral,6,3,0,0.0,2
+202511,thegoodlist.fr / referral,6,6,0,0.0,6
+202512,(data not available),6,3,1,114.0,5
+202601,mail.google.com / referral,6,5,0,0.0,4
+202601,productregistry.org / referral,6,0,0,0.0,6
+202602,yahoo / organic,6,5,0,0.0,4
+202603,Pinterest / organic,6,3,0,0.0,6
+202603,shop_app / (not set),6,6,0,0.0,4
+202603,xxxxx / xxxxx,6,2,0,0.0,5
+202605,IGShopping / Social,6,2,0,0.0,5
+202606,IGShopping / Social,6,3,0,0.0,5
+202606,crm / whatsapp_,6,1,0,0.0,4
+202606,trustpilot / company_profile,6,3,1,49.0,3
+202506,l.instagram.com / Influenceur,5,2,0,0.0,4
+202507,listy.fr / referral,5,3,0,0.0,3
+202507,meta.com / referral,5,3,0,0.0,4
+202507,nl.search.yahoo.com / referral,5,1,0,0.0,1
+202507,redirect.ppro.com / referral,5,4,0,0.0,3
+202508,admin.shopify.com / referral,5,4,0,0.0,1
+202508,en.cap3000.com / referral,5,3,0,0.0,1
+202508,facebook / paid,5,3,0,0.0,3
+202508,l.wl.co / referral,5,2,0,0.0,3
+202508,linktr.ee / referral,5,3,0,0.0,5
+202508,marieclaire.be / referral,5,4,0,0.0,4
+202508,outlook.live.com / referral,5,2,0,0.0,3
+202508,trustpilot / company_profile,5,3,0,0.0,3
+202509,affilae / affiliation,5,1,0,0.0,2
+202509,linkedin.com / referral,5,3,0,0.0,5
+202509,public.fr / referral,5,1,0,0.0,1
+202509,trustpilot / company_profile,5,3,0,0.0,3
+202510,lepetitlunetier.couponasion.com / referral,5,2,1,273.2,1
+202510,youcare.world / referral,5,5,0,0.0,5
+202511,copilot.microsoft.com / referral,5,1,0,0.0,3
+202511,lm.facebook.com / referral,5,3,0,0.0,5
+202511,yahoo / organic,5,5,0,0.0,5
+202512,IGShopping / Social,5,3,0,0.0,4
+202512,poulpeo.com / referral,5,2,0,0.0,3
+202601,search.brave.com / referral,5,3,0,0.0,5
+202601,yahoo / organic,5,5,0,0.0,4
+202602,judgeme / email,5,2,0,0.0,3
+202602,l.instagram.com / referral,5,2,0,0.0,5
+202602,shop-website / website,5,1,0,0.0,2
+202603,brevo / email,5,2,1,114.0,1
+202603,crm / whatsapp_,5,4,1,49.0,2
+202603,perplexity / (not set),5,4,0,0.0,5
+202604,IGShopping / Social,5,3,0,0.0,5
+202604,xxxxx / xxxxx,5,4,0,0.0,5
+202605,facebook / (not set),5,1,0,0.0,1
+202606,yahoo / organic,5,3,0,0.0,2
+202506,REVER Recommendations / email,4,3,0,0.0,1
+202506,ebuyclub.com / referral,4,3,0,0.0,3
+202506,lm.facebook.com / referral,4,1,0,0.0,4
+202506,mail.google.com / referral,4,3,0,0.0,3
+202506,outlook.live.com / referral,4,1,0,0.0,3
+202506,youtube.com / referral,4,2,0,0.0,2
+202507,Instagram / Influenceur,4,3,0,0.0,3
+202507,lepetitlunetier.couponasion.com / referral,4,1,0,0.0,3
+202507,mesenvies.fr / referral,4,3,0,0.0,3
+202507,operator.savoo.com / referral,4,4,0,0.0,1
+202507,savoo.fr / referral,4,2,0,0.0,1
+202507,sendinblue / email,4,1,0,0.0,1
+202507,youcare.world / referral,4,4,0,0.0,4
+202508,copilot.microsoft.com / referral,4,3,0,0.0,3
+202508,dealspotr.com / referral,4,4,0,0.0,3
+202508,mcc.ac-limoges.fr / referral,4,4,0,0.0,1
+202508,noai.duckduckgo.com / referral,4,2,0,0.0,1
+202508,perplexity / (not set),4,4,0,0.0,4
+202509,brevo / email,4,3,0,0.0,3
+202509,doctissimo.fr / referral,4,2,0,0.0,1
+202509,mail.google.com / referral,4,0,0,0.0,3
+202509,operator.savoo.com / referral,4,3,0,0.0,3
+202509,statics.teams.cdn.office.net / referral,4,2,0,0.0,3
+202510,boonjy.com / referral,4,0,0,0.0,1
+202510,fr.igraal.com / referral,4,3,1,57.09,1
+202510,gearloose.corp.google.com / referral,4,4,0,0.0,4
+202510,instagram.com / referral,4,2,0,0.0,1
+202510,linkedin.com / referral,4,2,0,0.0,4
+202510,mail.google.com / referral,4,2,0,0.0,3
+202510,mesenvies.fr / referral,4,1,0,0.0,4
+202510,shopmy / (not set),4,1,0,0.0,4
+202511,canva.com / referral,4,2,0,0.0,2
+202511,instagram.com / referral,4,1,0,0.0,4
+202512,chatgpt.com / (not set),4,1,0,0.0,2
+202512,fr.igraal.com / referral,4,1,0,0.0,1
+202512,fr.promocodie.com / referral,4,2,0,0.0,1
+202512,listy.fr / referral,4,3,0,0.0,4
+202512,m.facebook.com / paid,4,1,0,0.0,4
+202601,trustpilot / company_profile,4,1,0,0.0,2
+202601,xxxxx / xxxxx,4,3,0,0.0,3
+202602,perplexity / (not set),4,4,0,0.0,1
+202604,Klaviyo / (not set),4,2,0,0.0,2
+202605,trustpilot / company_profile,4,3,0,0.0,1
+202506,g7fr0.r.a.d.sendibm1.com / referral,3,2,0,0.0,3
+202506,mesenvies.fr / referral,3,3,0,0.0,2
+202506,mobile.widilo.fr / referral,3,2,1,102.1,2
+202506,perplexity / (not set),3,3,0,0.0,3
+202506,search.brave.com / referral,3,3,0,0.0,3
+202506,search.lilo.org / referral,3,1,0,0.0,1
+202506,youcare.world / referral,3,2,0,0.0,2
+202507,AMT / Influencer,3,0,0,0.0,2
+202507,brevo / email,3,2,0,0.0,3
+202507,facebook-SiteLink / ppc,3,2,0,0.0,2
+202507,g7fr0.r.a.d.sendibm1.com / referral,3,2,0,0.0,2
+202507,hi.switchy.io / referral,3,3,0,0.0,2
+202507,joinparallel.io / referral,3,1,0,0.0,1
+202507,linktr.ee / referral,3,2,0,0.0,3
+202507,test-store20.myshopify.com / referral,3,2,0,0.0,1
+202507,yahoo / organic,3,3,0,0.0,3
+202508,affilae / affiliation,3,2,0,0.0,2
+202508,app.joko.com / referral,3,2,0,0.0,1
+202508,ca.search.yahoo.com / referral,3,2,0,0.0,2
+202508,gearloose.corp.google.com / referral,3,3,0,0.0,3
+202508,listy.fr / referral,3,2,0,0.0,2
+202508,m.youtube.com / referral,3,3,0,0.0,3
+202508,panda-search.org / referral,3,3,0,0.0,1
+202508,sendinblue / email,3,1,0,0.0,2
+202508,shop_app / (not set),3,1,0,0.0,2
+202508,typeform.com / referral,3,1,0,0.0,2
+202508,youcare.world / referral,3,3,0,0.0,2
+202509,cap3000.com / referral,3,2,0,0.0,2
+202509,dealspotr.com / referral,3,1,0,0.0,3
+202509,nesobrands.com / referral,3,3,0,0.0,3
+202509,snapchat / social,3,2,0,0.0,3
+202510,ca.pinterest.com / referral,3,2,0,0.0,1
+202510,facebook.com / referral,3,2,0,0.0,3
+202510,linktr.ee / referral,3,0,0,0.0,3
+202510,marieclaire.be / referral,3,3,0,0.0,3
+202510,sendinblue / email,3,0,0,0.0,1
+202511,(not set) / paid,3,2,0,0.0,2
+202511,Instagram_stories / Influenceur,3,1,0,0.0,2
+202511,ebuyclub.com / referral,3,1,0,0.0,3
+202511,operator.savoo.com / referral,3,1,0,0.0,2
+202511,shopmy / (not set),3,1,0,0.0,3
+202511,trustpilot / company_profile,3,3,0,0.0,3
+202511,wishupon.app / referral,3,3,0,0.0,3
+202512,duckduckgo / organic,3,1,0,0.0,2
+202512,es.pinterest.com / referral,3,3,0,0.0,1
+202512,mesenvies.fr / referral,3,1,0,0.0,3
+202601,ebuyclub.com / referral,3,0,0,0.0,1
+202601,ecommerce-gateway.mollie.com / referral,3,1,0,0.0,1
+202601,facebook.com / referral,3,1,0,0.0,3
+202601,mesenvies.fr / referral,3,3,0,0.0,2
+202601,pinterest.com / referral,3,0,0,0.0,3
+202601,psbe-le-petit-lunetier.odoo.com / referral,3,1,0,0.0,1
+202601,sendinblue / email,3,1,0,0.0,1
+202602,AMT / Influenceur,3,0,0,0.0,3
+202603,(not set) / paid,3,1,0,0.0,1
+202603,judgeme / email,3,2,0,0.0,1
+202603,klarna / referral,3,3,0,0.0,3
+202603,redirect.ppro.com / referral,3,3,0,0.0,2
+202604,facebook / Paid Social,3,1,0,0.0,1
+202605,Pinterest / organic,3,2,0,0.0,2
+202605,google / (not set),3,1,0,0.0,1
+202605,m.facebook.com / referral,3,1,0,0.0,3
+202605,socialmedia / influence,3,0,0,0.0,1
+202606,(not set) / product-links,3,3,0,0.0,1
+202606,facebook-SiteLink / ppc,3,2,0,0.0,2
+202506,AMT / Influencer,2,1,0,0.0,2
+202506,admin.upservices.upfeat.io / referral,2,2,0,0.0,1
+202506,agenceshop.fr / referral,2,1,0,0.0,1
+202506,dealabs.com / referral,2,2,0,0.0,2
+202506,g7fr0.r.bh.d.sendibt3.com / referral,2,0,0,0.0,1
+202506,klarna / referral,2,2,0,0.0,1
+202506,listy.fr / referral,2,1,0,0.0,2
+202506,marieclaire.be / referral,2,2,0,0.0,2
+202506,redirect.ppro.com / referral,2,0,0,0.0,2
+202506,sellsy.com / referral,2,0,0,0.0,1
+202506,sendinblue / email,2,2,0,0.0,1
+202507,codepromo.lexpress.fr / referral,2,1,0,0.0,1
+202507,internet-start.net / referral,2,2,0,0.0,1
+202507,lm.facebook.com / referral,2,1,0,0.0,2
+202507,manus.im / referral,2,1,0,0.0,1
+202507,promos.fr / referral,2,1,0,0.0,1
+202507,statics.teams.cdn.office.net / referral,2,2,0,0.0,2
+202507,tiktok.com / referral,2,2,0,0.0,2
+202508,as.search.yahoo.com / referral,2,2,0,0.0,1
+202508,codepromo.lexpress.fr / referral,2,2,1,53.99,1
+202508,dsh0p.com / referral,2,1,0,0.0,1
+202508,email.seznam.cz / referral,2,2,0,0.0,1
+202508,klaviyo.lightning.force.com / referral,2,0,0,0.0,1
+202508,mail.google.com / referral,2,1,0,0.0,2
+202508,operator.savoo.com / referral,2,2,0,0.0,2
+202508,redirect.ppro.com / referral,2,1,0,0.0,1
+202508,t.co / referral,2,0,0,0.0,1
+202509,facebook / (not set),2,1,0,0.0,1
+202509,fr.mappy.com / referral,2,0,0,0.0,1
+202509,lepetitlunetier.couponasion.com / referral,2,2,0,0.0,1
+202509,loyaltylion.lightning.force.com / referral,2,2,0,0.0,1
+202509,pay.mollie.nl / referral,2,0,0,0.0,1
+202509,sendinblue / email,2,2,0,0.0,2
+202509,sg.search.yahoo.com / referral,2,1,0,0.0,1
+202509,shop_app / (not set),2,1,0,0.0,2
+202509,vbpc5g-np.myshopify.com / referral,2,2,0,0.0,1
+202510,affilae / affiliation,2,2,0,0.0,2
+202510,bit.ly / referral,2,1,0,0.0,2
+202510,copilot.microsoft.com / referral,2,2,0,0.0,2
+202510,datadog.lightning.force.com / referral,2,0,0,0.0,1
+202510,mail01.orange.fr / referral,2,0,0,0.0,2
+202510,operator.savoo.com / referral,2,2,0,0.0,1
+202510,perplexity / (not set),2,1,0,0.0,2
+202510,shop_app / (not set),2,0,0,0.0,2
+202510,trustpilot / company_profile,2,2,0,0.0,2
+202510,youtube / chaine-youtube,2,1,0,0.0,1
+202511,AMT / Influencer,2,0,0,0.0,2
+202511,REVER Recommendations / email,2,1,0,0.0,2
+202511,app.minari.ai / referral,2,1,0,0.0,1
+202511,bit.ly / referral,2,0,0,0.0,1
+202511,d3kr42y8uedjhqch-11691934.shopifypreview.com / referral,2,2,0,0.0,1
+202511,de.search.yahoo.com / referral,2,0,0,0.0,1
+202511,fittingbox.com / referral,2,2,0,0.0,2
+202511,frc-excel.officeapps.live.com / referral,2,2,0,0.0,1
+202511,lepetitlunetier-com.translate.goog / referral,2,1,0,0.0,1
+202511,m.facebook.com / paid,2,0,0,0.0,2
+202511,m.youtube.com / referral,2,1,0,0.0,1
+202511,mail.google.com / referral,2,1,0,0.0,1
+202511,mail.infomaniak.com / referral,2,1,0,0.0,1
+202511,marieclaire.be / referral,2,2,0,0.0,2
+202511,messageriepro.orange.fr / referral,2,2,0,0.0,1
+202511,outlook.live.com / referral,2,2,0,0.0,2
+202511,snapchat.com / referral,2,1,0,0.0,2
+202511,statics.teams.cdn.office.net / referral,2,1,0,0.0,2
+202511,trustdeals.fr / referral,2,2,0,0.0,1
+202511,typeform.com / referral,2,1,0,0.0,2
+202512,Facebook / Paid Social,2,1,0,0.0,2
+202512,d3kr42y8uedjhqch-11691934.shopifypreview.com / referral,2,0,0,0.0,1
+202512,judgeme / referral,2,2,0,0.0,2
+202512,l.facebook.com / paid,2,2,0,0.0,1
+202512,messageriepro.orange.fr / referral,2,2,0,0.0,1
+202601,influenceur.promo / referral,2,2,0,0.0,1
+202601,mail.infomaniak.com / referral,2,0,0,0.0,1
+202601,tagassistant.google.com / referral,2,2,0,0.0,1
+202602,Pinterest / organic,2,0,0,0.0,2
+202602,affilae / affiliation,2,1,1,64.0,1
+202602,le-petit-lunetier.shipping-portal.com / referral,2,1,0,0.0,1
+202602,mesenvies.fr / referral,2,0,0,0.0,1
+202602,sendinblue / email,2,1,0,0.0,1
+202602,test-store20.myshopify.com / referral,2,1,0,0.0,1
+202603,google.com / referral,2,0,0,0.0,2
+202603,messageriepro.orange.fr / referral,2,2,0,0.0,1
+202603,sendinblue / email,2,1,0,0.0,1
+202603,shopmy / (not set),2,1,0,0.0,1
+202603,trustpilot / company_profile,2,1,0,0.0,2
+202604,Pinterest / organic,2,2,0,0.0,2
+202604,google / (not set),2,2,0,0.0,2
+202604,shop_app / (not set),2,2,0,0.0,1
+202605,Account Activation / email,2,1,0,0.0,1
+202605,klarna / referral,2,0,0,0.0,2
+202605,mail.google.com / referral,2,1,0,0.0,2
+202605,xxxxx / xxxxx,2,2,0,0.0,2
+202606,Klaviyo / (not set),2,0,0,0.0,1
+202606,admin.shopify.com / referral,2,1,0,0.0,1
+202606,gemini.google.com / ai-assistant,2,1,0,0.0,2
+202606,google.com / referral,2,0,0,0.0,2
+202606,judgeme / email,2,0,0,0.0,2
+202606,mail.google.com / referral,2,2,0,0.0,2
+202506,Account Activation / email,1,0,0,0.0,1
+202506,admin.shopify.com / referral,1,1,0,0.0,1
+202506,app.affilae.com / referral,1,1,0,0.0,1
+202506,canva.com / referral,1,1,0,0.0,1
+202506,commeuncamion.com / referral,1,0,0,0.0,1
+202506,facebook / paid,1,1,0,0.0,1
+202506,facebook-SiteLink / ppc,1,0,0,0.0,1
+202506,hi.switchy.io / referral,1,1,0,0.0,1
+202506,instagram.com / Influenceur,1,0,0,0.0,1
+202506,l.instagram.com / Influe nceur,1,0,0,0.0,1
+202506,lepetitlunetier.couponasion.com / referral,1,1,0,0.0,1
+202506,linktr.ee / referral,1,1,0,0.0,1
+202506,madmoizelle.com / referral,1,0,0,0.0,1
+202506,marieclaire.fr / affiliation,1,0,0,0.0,1
+202506,milirose.com / referral,1,1,0,0.0,1
+202506,nl.search.yahoo.com / referral,1,1,0,0.0,1
+202506,operator.savoo.com / referral,1,1,0,0.0,1
+202506,pinterest.com / referral,1,0,0,0.0,1
+202506,promos.fr / referral,1,0,0,0.0,1
+202506,shop_app / (not set),1,1,0,0.0,1
+202506,trustpilot / company_profile,1,1,0,0.0,1
+202506,web-mail.laposte.net / referral,1,1,0,0.0,1
+202507,(not set) / Infl uenceur,1,0,0,0.0,1
+202507,21buttons / social,1,0,0,0.0,1
+202507,AMT / lnfluenceur,1,1,0,0.0,1
+202507,REVER Recommendations / email,1,1,0,0.0,1
+202507,afterdarkmode.net / referral,1,1,0,0.0,1
+202507,aftership.com / referral,1,0,0,0.0,1
+202507,app.joko.com / referral,1,1,0,0.0,1
+202507,canva.com / referral,1,0,0,0.0,1
+202507,cap3000.com / referral,1,1,0,0.0,1
+202507,chatgpt / (not set),1,0,0,0.0,1
+202507,copilot.microsoft.com / referral,1,1,0,0.0,1
+202507,doitinparis.com / referral,1,1,0,0.0,1
+202507,en.cap3000.com / referral,1,1,0,0.0,1
+202507,facebook / (not set),1,0,0,0.0,1
+202507,fr.promocodie.com / referral,1,0,0,0.0,1
+202507,g7fr0.r.bh.d.sendibt3.com / referral,1,0,0,0.0,1
+202507,gearloose.corp.google.com / referral,1,1,0,0.0,1
+202507,instagram.com / Infl uenceur,1,1,0,0.0,1
+202507,l.workplace.com / referral,1,1,0,0.0,1
+202507,listesdecadeaux.com / referral,1,0,0,0.0,1
+202507,lpf / referral,1,1,0,0.0,1
+202507,mail01.orange.fr / referral,1,1,0,0.0,1
+202507,mail02.orange.fr / referral,1,1,0,0.0,1
+202507,marieclaire.fr / referral,1,1,0,0.0,1
+202507,ordissinaute.co.uk / referral,1,0,0,0.0,1
+202507,pagesjaunes.fr / referral,1,1,0,0.0,1
+202507,perplexity.ai / referral,1,1,0,0.0,1
+202507,pinterest.com / referral,1,0,0,0.0,1
+202507,privacywall.org / referral,1,0,0,0.0,1
+202507,revealstudio.co / referral,1,1,0,0.0,1
+202507,semrush.com / referral,1,0,0,0.0,1
+202507,snapchat.com / referral,1,1,0,0.0,1
+202507,trustpilot / company_profile,1,1,0,0.0,1
+202507,yellow-search.org / referral,1,1,0,0.0,1
+202507,youtube / chaine-youtube,1,1,0,0.0,1
+202508,REVER Recommendations / email,1,1,0,0.0,1
+202508,aftership.com / referral,1,1,0,0.0,1
+202508,app.seobserver.com / referral,1,1,0,0.0,1
+202508,brevo / email,1,1,0,0.0,1
+202508,chatgpt.com / (none),1,1,0,0.0,1
+202508,es.pinterest.com / referral,1,1,0,0.0,1
+202508,fr.mappy.com / referral,1,1,0,0.0,1
+202508,fr.promocodie.com / referral,1,0,0,0.0,1
+202508,g7fr0.r.bh.d.sendibt3.com / referral,1,0,0,0.0,1
+202508,gateway.zscalerthree.net / referral,1,1,0,0.0,1
+202508,gemini.google.com / referral,1,1,0,0.0,1
+202508,it.search.yahoo.com / referral,1,1,0,0.0,1
+202508,l.instagram.com / l nfluenceur,1,1,0,0.0,1
+202508,lepetitlunetier.gutscheine7.de / referral,1,1,1,46.64,1
+202508,linkedin.com / referral,1,1,0,0.0,1
+202508,lookfamed.lightning.force.com / referral,1,1,0,0.0,1
+202508,m.search.naver.com / referral,1,1,0,0.0,1
+202508,mail.telenet.be / referral,1,1,0,0.0,1
+202508,majolieliste.fr / referral,1,1,0,0.0,1
+202508,mesenvies.fr / referral,1,1,0,0.0,1
+202508,nesobrands.com / referral,1,1,0,0.0,1
+202508,nl.search.yahoo.com / referral,1,1,0,0.0,1
+202508,nyscollection.ma / referral,1,1,0,0.0,1
+202508,ordissinaute.co.uk / referral,1,1,0,0.0,1
+202508,petalsearch.com / referral,1,1,0,0.0,1
+202508,public.fr / referral,1,1,0,0.0,1
+202508,sitedesmarques.com / referral,1,1,0,0.0,1
+202508,test-store20.myshopify.com / referral,1,0,0,0.0,1
+202508,thegoodlist.fr / referral,1,1,0,0.0,1
+202508,wmail.orange.fr / referral,1,1,0,0.0,1
+202509,Instagram_Stories / Influencer,1,0,0,0.0,1
+202509,app.joko.com / referral,1,1,0,0.0,1
+202509,app.prontohq.com / referral,1,1,0,0.0,1
+202509,belacom.lightning.force.com / referral,1,1,0,0.0,1
+202509,bit.ly / referral,1,1,0,0.0,1
+202509,ca.pinterest.com / referral,1,1,0,0.0,1
+202509,canva / iframely,1,1,0,0.0,1
+202509,dealdrop.com / referral,1,1,0,0.0,1
+202509,gevciamst.online / referral,1,0,0,0.0,1
+202509,gw199038.fortimail.com / referral,1,1,0,0.0,1
+202509,instagram.com / referral,1,0,0,0.0,1
+202509,it.cap3000.com / referral,1,1,0,0.0,1
+202509,lm.facebook.com / referral,1,0,0,0.0,1
+202509,lpf / (not set),1,0,0,0.0,1
+202509,m.youtube.com / referral,1,1,0,0.0,1
+202509,mediatech-solutions.lightning.force.com / referral,1,1,0,0.0,1
+202509,mesenvies.fr / referral,1,1,0,0.0,1
+202509,meta / CBO,1,0,0,0.0,1
+202509,ntp.msn.com / referral,1,1,0,0.0,1
+202509,ophtacity.fr / referral,1,1,0,0.0,1
+202509,perplexity / (not set),1,1,0,0.0,1
+202509,prod.wearejoon.com / referral,1,1,0,0.0,1
+202509,ru.pinterest.com / referral,1,1,0,0.0,1
+202509,shopping-product-identity.datacompute.google.com / referral,1,1,0,0.0,1
+202509,webmail.ac-nancy-metz.fr / referral,1,1,0,0.0,1
+202509,yahoo / organic,1,0,0,0.0,1
+202510,AMT / Influencer,1,0,0,0.0,1
+202510,agenceshop.fr / referral,1,1,0,0.0,1
+202510,app.trendtrack.io / referral,1,0,0,0.0,1
+202510,arobbase.fr / referral,1,1,0,0.0,1
+202510,br.pinterest.com / referral,1,1,0,0.0,1
+202510,brevo / email,1,1,0,0.0,1
+202510,ca.search.yahoo.com / referral,1,1,0,0.0,1
+202510,canva.com / referral,1,1,0,0.0,1
+202510,cap3000.com / referral,1,1,0,0.0,1
+202510,capitaloneshopping.com / referral,1,0,0,0.0,1
+202510,ch.search.yahoo.com / referral,1,1,0,0.0,1
+202510,crm.lionflence.com / referral,1,1,0,0.0,1
+202510,emea.search.yahoo.com / referral,1,1,0,0.0,1
+202510,fr.mappy.com / referral,1,1,0,0.0,1
+202510,lm.facebook.com / referral,1,0,0,0.0,1
+202510,marieclaire.fr / referral,1,1,0,0.0,1
+202510,noel.ma-liste.net / referral,1,1,0,0.0,1
+202510,nyscollection.ma / referral,1,1,0,0.0,1
+202510,perplexity.ai / referral,1,1,0,0.0,1
+202510,sem.bridportserver.click / referral,1,1,0,0.0,1
+202510,snapchat.com / referral,1,0,0,0.0,1
+202510,startpage.com / referral,1,1,0,0.0,1
+202510,t.co / referral,1,1,0,0.0,1
+202510,tiktok.com / referral,1,0,0,0.0,1
+202510,trackanalyse.com / referral,1,1,0,0.0,1
+202510,trustpilot.lightning.force.com / referral,1,1,0,0.0,1
+202510,viber.com / referral,1,1,0,0.0,1
+202510,yandex.ru / referral,1,1,0,0.0,1
+202511,affilae / affiliation,1,1,0,0.0,1
+202511,app.neuronwriter.com / referral,1,0,0,0.0,1
+202511,app.trendtrack.io / referral,1,0,0,0.0,1
+202511,app.youpili.fr / referral,1,1,0,0.0,1
+202511,back-in-stock / email,1,1,0,0.0,1
+202511,baidu / organic,1,1,0,0.0,1
+202511,br.pinterest.com / referral,1,0,0,0.0,1
+202511,ca.search.yahoo.com / referral,1,1,0,0.0,1
+202511,chatgpt.com / (none),1,1,0,0.0,1
+202511,cro.media / referral,1,1,0,0.0,1
+202511,dealabs.com / referral,1,1,0,0.0,1
+202511,dealspotr.com / referral,1,1,0,0.0,1
+202511,drawnames.fr / referral,1,1,0,0.0,1
+202511,e.mail.ru / referral,1,1,0,0.0,1
+202511,facebook.com / referral,1,1,0,0.0,1
+202511,gearloose.corp.google.com / referral,1,1,0,0.0,1
+202511,getjust.eu / referral,1,0,0,0.0,1
+202511,google / (not set),1,1,0,0.0,1
+202511,gowish.com / referral,1,0,0,0.0,1
+202511,ig_text_feed_timeline / referral,1,1,0,0.0,1
+202511,in.search.yahoo.com / referral,1,1,0,0.0,1
+202511,journaldesfemmes.fr / referral,1,1,0,0.0,1
+202511,l.facebook.com / paid,1,0,0,0.0,1
+202511,linkedin.com / referral,1,1,0,0.0,1
+202511,mail01.orange.fr / referral,1,0,0,0.0,1
+202511,mail02.orange.fr / referral,1,1,0,0.0,1
+202511,meta / CBO,1,1,0,0.0,1
+202511,mibc-fr-04.mailinblack.com / referral,1,1,0,0.0,1
+202511,msn.com / referral,1,1,0,0.0,1
+202511,nesobrands.com / referral,1,1,0,0.0,1
+202511,perplexity.ai / referral,1,1,0,0.0,1
+202511,qwantjunior.com / referral,1,1,0,0.0,1
+202511,r.promocodie.com / referral,1,1,0,0.0,1
+202511,revealstudio.co / referral,1,1,0,0.0,1
+202511,revolut3.lightning.force.com / referral,1,1,0,0.0,1
+202511,sendinblue / email,1,0,0,0.0,1
+202511,symbaloo.com / referral,1,1,0,0.0,1
+202511,tiktok.com / referral,1,1,0,0.0,1
+202511,trustpilot.lightning.force.com / referral,1,1,0,0.0,1
+202511,twitch.tv / referral,1,1,0,0.0,1
+202511,web-mail.laposte.net / referral,1,1,0,0.0,1
+202511,webmail.sfr.fr / referral,1,1,0,0.0,1
+202511,yellow-search.org / referral,1,1,0,0.0,1
+202511,zimbra.free.fr / referral,1,1,0,0.0,1
+202512,admin.upservices.upfeat.io / referral,1,1,0,0.0,1
+202512,baidu / organic,1,0,0,0.0,1
+202512,br.pinterest.com / referral,1,0,0,0.0,1
+202512,klarna / referral,1,0,0,0.0,1
+202512,klaviyo.com / referral,1,1,0,0.0,1
+202512,l.wl.co / referral,1,1,0,0.0,1
+202512,lepetitlunetier.aftership.com / referral,1,0,0,0.0,1
+202512,marieclaire.fr / referral,1,1,0,0.0,1
+202512,pinterest.com / referral,1,1,0,0.0,1
+202512,redirect.ppro.com / referral,1,1,0,0.0,1
+202512,youtube.com / referral,1,1,0,0.0,1
+202512,zipchat / chat_bubble,1,1,0,0.0,1
+202601,Account Activation / email,1,0,0,0.0,1
+202601,Facebook / Paid Social,1,1,0,0.0,1
+202601,REVER Recommendations / email,1,1,0,0.0,1
+202601,admin.upservices.upfeat.io / referral,1,0,0,0.0,1
+202601,belacom.lightning.force.com / referral,1,1,0,0.0,1
+202601,canva.com / referral,1,1,1,55.99,1
+202601,commeuncamion.com / referral,1,1,0,0.0,1
+202601,d3kr42y8uedjhqch-11691934.shopifypreview.com / referral,1,0,0,0.0,1
+202601,frc-excel.officeapps.live.com / referral,1,0,0,0.0,1
+202601,klarna / referral,1,1,0,0.0,1
+202601,mail01.orange.fr / referral,1,1,0,0.0,1
+202601,mail02.orange.fr / referral,1,1,0,0.0,1
+202601,messageriepro.orange.fr / referral,1,1,0,0.0,1
+202601,outlook.live.com / referral,1,1,0,0.0,1
+202601,savoo.fr / referral,1,1,0,0.0,1
+202601,thegoodlist.fr / referral,1,0,0,0.0,1
+202601,tiktok.com / referral,1,0,0,0.0,1
+202601,typeform.com / referral,1,0,0,0.0,1
+202602,Chrome / Extension:omnibox,1,1,0,0.0,1
+202602,Facebook / Paid Social,1,1,0,0.0,1
+202602,chatgpt.com / referral,1,0,0,0.0,1
+202602,d3kr42y8uedjhqch-11691934.shopifypreview.com / referral,1,1,0,0.0,1
+202602,fr.igraal.com / referral,1,0,0,0.0,1
+202602,klarna / referral,1,1,0,0.0,1
+202602,l.facebook.com / referral,1,0,0,0.0,1
+202602,shopmy / (not set),1,0,0,0.0,1
+202602,trustpilot / company_profile,1,0,0,0.0,1
+202602,typeform / quizz,1,1,0,0.0,1
+202603,21buttons / social,1,0,0,0.0,1
+202603,AMT / Influenceur,1,1,0,0.0,1
+202603,Instagram_stories / Influenceur,1,1,0,0.0,1
+202603,Klaviyo&utm_medium=email&utm_campaign=FR - sélection mi saison - 08.03.2026 (01KK1RA855434JCX3JMYEYBRKD)&utm_id=01KK1RA855434JCX3JMYEYBRKD&_kx=rNYjkYYDf-7hY01qYQypmUmk0RSZznUB7XiGdb77fKgXdKlwg_WRJNq050OKRItF.NPQDCS&filter.v.price.gte=49&filter.v.price.lte=49 / (not set),1,1,0,0.0,1
+202603,admin.upservices.upfeat.io / referral,1,1,0,0.0,1
+202603,facebook.com / referral,1,1,0,0.0,1
+202603,google&utm_medium=cpc&utm_campaign=14718563180&utm_adgroup=128226982780&utm_content={adid}&utm_term=le petit lunetier&gad_source=1&gad_campaignid=14718563180&gclid=CjwKCAjw1N7NBhAoEiwAcPchpypseJ92iosztLl0XfJ5i2DWc6CZD0Xo15xdLohE2M6A-NbDoCZNEhoCjlkQAvD_BwE / (not set),1,1,0,0.0,1
+202603,l.facebook.com / referral,1,1,0,0.0,1
+202604,facebook.com / referral,1,0,0,0.0,1
+202604,judgeme / email,1,1,0,0.0,1
+202604,klarna / referral,1,1,1,54.99,1
+202604,perplexity / (not set),1,0,0,0.0,1
+202604,psbe-le-petit-lunetier.odoo.com / referral,1,0,0,0.0,1
+202604,trustpilot / company_profile,1,0,0,0.0,1
+202605,admin.shopify.com / referral,1,1,0,0.0,1
+202605,ecommerce-gateway.mollie.com / referral,1,0,0,0.0,1
+202605,facebook.com / referral,1,0,0,0.0,1
+202605,google / product_sync,1,0,0,0.0,1
+202605,google.com / referral,1,0,0,0.0,1
+202605,le-petit-lunetier.as.me / referral,1,1,0,0.0,1
+202606,(not set) / paid,1,1,0,0.0,1
+202606,Facebook / Paid Social,1,1,0,0.0,1
+202606,barber-room.co.uk / referral,1,0,0,0.0,1
+202606,claude.ai / ai-assistant,1,1,0,0.0,1
+202606,copilot.com / (not set),1,0,0,0.0,1
+202606,cro.media / referral,1,1,0,0.0,1
+202606,google / product_sync,1,0,0,0.0,1
+202606,judgeme / referral,1,0,0,0.0,1
+202606,xxxxx / xxxxx,1,1,0,0.0,1

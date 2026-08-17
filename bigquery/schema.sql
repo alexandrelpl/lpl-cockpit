@@ -165,9 +165,160 @@ CREATE TABLE IF NOT EXISTS `lpl_cockpit.gender_name_cache` (
 ) OPTIONS (description = "Cache prénom normalisé -> H/F/U (gg + Claude).");
 
 -- 5k) Sessions GA4 filtrées Pays-Bas (pour le CVR du segment NEDERLAND TEST).
+-- ---------- PMax (Google Ads) : sources validées par google_pmax_probe (API v24) ----------
+-- Catégories de requêtes par campagne PMax. Sert à mesurer la cannibalisation de marque
+-- (part des conversions PMax venant de requêtes contenant le nom de marque).
+-- ⚠️ SNAPSHOT, pas de granularité journalière : sur `campaign_search_term_insight`,
+--    `segments.date` est filtrable mais PAS sélectionnable -> le résultat est un agrégat
+--    sur [period_start, period_end]. Table remplacée intégralement à chaque run.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.google_pmax_search_cat` (
+  period_start     DATE,
+  period_end       DATE,
+  campaign_id      STRING,
+  campaign_name    STRING,
+  category_label   STRING,             -- '(non catégorisé)' = anonymisé par Google (faible volume)
+  impressions      INT64,
+  clicks           INT64,
+  conversions      FLOAT64,
+  conversion_value FLOAT64,
+  updated_at       TIMESTAMP
+) OPTIONS (description = "Catégories de requêtes PMax — agrégat période (API : pas de date sélectionnable).");
+
+-- Perf par produit réel : concentration du spend, produits zombies.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.google_pmax_products` (
+  date             DATE,
+  campaign_id      STRING,
+  campaign_name    STRING,
+  product_item_id  STRING,
+  product_title    STRING,
+  cost             FLOAT64,
+  impressions      INT64,
+  clicks           INT64,
+  conversions      FLOAT64,
+  conversion_value FLOAT64,
+  updated_at       TIMESTAMP
+) PARTITION BY date OPTIONS (description = "Perf produit PMax (shopping_performance_view).");
+
+-- Perf + statut de diffusion par asset.
+-- ⚠️ NON ADDITIF : une impression implique plusieurs assets, chacun porte le coût complet.
+--    La somme des coûts d'assets DEPASSE le coût de la campagne. Usage COMPARATIF seulement
+--    (entre assets de même field_type dans un même asset group).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.google_pmax_assets` (
+  date             DATE,
+  campaign_id      STRING,
+  campaign_name    STRING,
+  asset_group_id   STRING,
+  asset_group_name STRING,
+  asset_resource   STRING,
+  field_type       STRING,             -- HEADLINE / DESCRIPTION / MARKETING_IMAGE / ...
+  status           STRING,
+  primary_status   STRING,             -- NOT_ELIGIBLE / ELIGIBLE / LIMITED / ...
+  cost             FLOAT64,
+  impressions      INT64,
+  clicks           INT64,
+  conversions      FLOAT64,
+  conversion_value FLOAT64,
+  updated_at       TIMESTAMP
+) PARTITION BY date OPTIONS (description = "Perf asset PMax. NON ADDITIF — comparatif uniquement.");
+
+-- Snapshots (remplacés à chaque run).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.google_pmax_asset_groups` (
+  campaign_id        STRING,
+  campaign_name      STRING,
+  campaign_status    STRING,
+  asset_group_id     STRING,
+  asset_group_name   STRING,
+  asset_group_status STRING,
+  ad_strength        STRING,           -- POOR / AVERAGE / GOOD / EXCELLENT
+  updated_at         TIMESTAMP
+) OPTIONS (description = "Snapshot ad_strength / statut des asset groups PMax.");
+
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.google_pmax_campaigns` (
+  campaign_id      STRING,
+  campaign_name    STRING,
+  channel_type     STRING,
+  bidding_strategy STRING,
+  target_roas      FLOAT64,            -- tROAS configuré (3.5 sur les PMax LPL)
+  daily_budget     FLOAT64,
+  updated_at       TIMESTAMP
+) OPTIONS (description = "Snapshot config campagnes : stratégie, tROAS cible, budget.");
+
+-- ---------- Performance produit (web + retail unifiés par shopify_variant_id) ----------
+-- Catalogue : 1 ligne par variante. Snapshot remplacé à chaque run.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.product_catalog` (
+  shopify_variant_id  STRING,          -- clé de jointure web + retail
+  shopify_product_id  STRING,
+  sku                 STRING,
+  title               STRING,
+  product_type        STRING,
+  category            STRING,           -- Optique / Solaire / Autre
+  gender              STRING,           -- Homme / Femme / Mixte / Indéterminé (depuis tags)
+  price               FLOAT64,
+  status              STRING,           -- ACTIVE / ARCHIVED / DRAFT / UNLISTED
+  published_online    BOOL,             -- publié sur « Online Store » (publishedAt non nul)
+  tags                ARRAY<STRING>,
+  date_tags           ARRAY<STRING>,    -- tags « datés » de collection/drop (filtres)
+  updated_at          TIMESTAMP
+) OPTIONS (description = "Catalogue produit par variante — métadonnées + genre + tags.");
+
+-- Ventes « Braderies » (canal Syncio / email logistique@thebradery.com) : HORS CA principal,
+-- suivies à part. CA net de remboursements, TTC, à la date de commande (Europe/Paris).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.braderie_daily` (
+  date        DATE,
+  orders      INT64,               -- nb de commandes Braderie
+  net_sales   FLOAT64,             -- CA net TTC (remboursements deduits)
+  updated_at  TIMESTAMP
+) PARTITION BY date OPTIONS (description = "Ventes Braderies (canal Syncio/thebradery), hors CA principal.");
+
+-- Ventes web par produit (jour x variante), net remises + remboursements.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.web_sales_daily` (
+  date               DATE,
+  shopify_variant_id STRING,
+  sku                STRING,
+  units              FLOAT64,
+  revenue            FLOAT64,           -- CA net web réel
+  updated_at         TIMESTAMP
+) PARTITION BY date OPTIONS (description = "Ventes web par jour x variante (CA net réel).");
+
+-- Ventes retail par produit (jour x variante). UNITÉS seulement — le CA se calcule
+-- côté endpoint = units x prix catalogue (le DWH ne porte pas le CA net au niveau ligne).
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.retail_sales_daily` (
+  date               DATE,
+  shopify_variant_id STRING,
+  units              FLOAT64
+) OPTIONS (description = "Ventes retail par jour x variante (unites, CA = units x prix catalogue).");
+
+-- Réassorts fournisseurs (Google Sheet « Order register »). Snapshot remplacé à chaque run.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.product_incoming` (
+  sku            STRING,
+  ean            STRING,
+  delivery_date  DATE,               -- Estimated delivery date (col K du sheet)
+  updated_at     TIMESTAMP
+) OPTIONS (description = "Reassorts fournisseurs : date de livraison estimee par SKU/EAN.");
+
+-- Stock agrégé par variante (OOS web + retail). Snapshot remplacé à chaque run.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.product_stock` (
+  shopify_variant_id  STRING,
+  warehouse_available INT64,            -- stock au 155 Charonne - Warehouse (web)
+  total_inventory     INT64,
+  retail_loc_total    INT64,            -- nb de boutiques suivies (hors warehouse + 4 exclues)
+  retail_loc_oos      INT64,            -- nb de ces boutiques à stock 0
+  web_available       BOOL,             -- ACTIVE ET publié Online Store ET warehouse > 0
+  updated_at          TIMESTAMP
+) OPTIONS (description = "Stock agrégé par variante : dispo web + OOS retail.");
+
 CREATE TABLE IF NOT EXISTS `lpl_cockpit.ga4_nl_daily` (
   date DATE NOT NULL, sessions INT64, updated_at TIMESTAMP NOT NULL
-) PARTITION BY date OPTIONS (description = "Sessions GA4 pays = Pays-Bas (countryId=NL), pour le CVR NL.");
+) PARTITION BY date OPTIONS (description = "Sessions GA4 Test Europe (AT/DE/ES/IT/NL/PT agrégé), pour le CVR segment.");
+
+-- Détail PAR PAYS du Test Europe (v1 « par pays » = demande). Sessions GA4 + commandes/CA Shopify.
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.ga4_country_daily` (
+  date DATE, country STRING, sessions INT64, updated_at TIMESTAMP
+) PARTITION BY date OPTIONS (description = "Sessions GA4 par pays (Test Europe AT/DE/ES/IT/NL/PT).");
+
+CREATE TABLE IF NOT EXISTS `lpl_cockpit.shopify_country_daily` (
+  date DATE, country STRING, orders INT64, ca FLOAT64, updated_at TIMESTAMP
+) PARTITION BY date OPTIONS (description = "Commandes + CA net par pays de livraison (Test Europe).");
 
 -- 5j-ter) Conso API Claude (module genre) — append-only, pour suivi coût sur le dashboard.
 CREATE TABLE IF NOT EXISTS `lpl_cockpit.claude_usage` (

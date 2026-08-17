@@ -66,6 +66,27 @@
   .ctbtn.on{background:var(--accent);color:#fff}
   .cdef{font-size:.72rem;color:#6b7280;line-height:1.6;background:#f6f8fa;border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin:0 0 11px}
   .cdef b{color:var(--ink)}
+  .prodbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .prodbar .psearch{margin:0}
+  .plbl{font-size:.74rem;font-weight:600;color:#5b6472;display:inline-flex;align-items:center;gap:6px}
+  .plbl select{padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:.78rem;color:var(--ink);background:#fbfcfd}
+  .prodbar .ctoggle{margin:0}
+  .gchecks{display:inline-flex;gap:10px;font-size:.76rem;color:#5b6472}
+  .gchecks label{display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+  .badge-oos{display:inline-block;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:5px;background:#fdecea;color:#c0392b;margin-left:4px}
+  .badge-cat{display:inline-block;font-size:.62rem;font-weight:600;padding:1px 6px;border-radius:5px;background:#eef2f7;color:#5b6472}
+  .badge-cat.cat-optique{background:#e6f0fb;color:#1c6dd0}
+  .badge-cat.cat-solaire{background:#fdf0d5;color:#b9770e}
+  .badge-cat.cat-autre{background:#eef2f7;color:#5b6472}
+  .ca-sec{color:#8a929c;font-size:.92em}
+  .langtoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:14px}
+  .langtoggle .lt-btn{border:0;background:transparent;padding:5px 13px;font-weight:800;font-size:.8rem;letter-spacing:.03em;cursor:pointer;color:#8a929c}
+  .langtoggle .lt-btn.on{background:#1c6dd0;color:#fff}
+  .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:1000}
+  .modal-bx{background:#fff;border-radius:12px;padding:22px;max-width:580px;width:92%;box-shadow:0 12px 44px rgba(0,0,0,.25)}
+  .modal-bx textarea{width:100%;box-sizing:border-box;font-family:monospace;font-size:.8rem;padding:8px;border:1px solid var(--line);border-radius:8px}
+  th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+  th.sortable:hover{text-decoration:underline}
   .hz{margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}
   .hz.first{border-top:none}
   .hzhead{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:5px}
@@ -158,7 +179,11 @@
   <img class="logo" src="https://cdn.shopify.com/s/files/1/1169/1934/files/LogoPrincipal_LPL_RVB_29ca96fd-46d1-4145-87a2-7ba4053da566.png?v=1781597237" alt="Le Petit Lunetier">
   <span class="brand-sep"></span>
   <h1>Dashboard Marketing</h1>
-  <label class="who">Période
+  <div class="langtoggle" id="langtoggle" title="Langue / Language">
+    <button class="lt-btn" data-lang="fr">FR</button>
+    <button class="lt-btn" data-lang="en">EN</button>
+  </div>
+  <label class="who" id="period-ctrl">Période
     <select id="days">
       <option value="7">7 jours</option>
       <option value="14">14 jours</option>
@@ -167,8 +192,23 @@
     </select>
   </label>
   <span class="who">{{ user }}</span>
+  <button class="btn" id="btn-metakey" onclick="openMetaKey()" style="margin-left:8px">🔑 Clé Meta</button>
   <a href="/logout">Déconnexion</a>
 </header>
+
+<div id="metakey-modal" class="modal-ov">
+  <div class="modal-bx">
+    <h2 style="margin-top:0">🔑 Mettre à jour la clé Meta</h2>
+    <div id="metakey-status" class="subcap" style="margin-bottom:10px">Chargement…</div>
+    <div class="subcap" style="margin-bottom:8px">Colle un nouveau token Meta (accès <b>ads_read</b> au compte {{ '305450184' }}). Il est validé auprès de Meta, enregistré dans Secret Manager, puis pris en compte tout de suite.</div>
+    <textarea id="metakey-input" rows="4" placeholder="EAAB..."></textarea>
+    <div id="metakey-msg" class="subcap" style="margin-top:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn" onclick="closeMetaKey()">Fermer</button>
+      <button class="btn" id="metakey-save" onclick="saveMetaKey()" style="background:#1c6dd0;color:#fff">Valider et enregistrer</button>
+    </div>
+  </div>
+</div>
 
 <div class="wrap">
   <div class="health" id="health"></div>
@@ -176,6 +216,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="cos">Vue d'ensemble</button>
       <button class="tab" data-tab="cro">CRO / Site</button>
+      <button class="tab" data-tab="products">Performance produit</button>
       <button class="tab" data-tab="meta">Meta Ads</button>
       <button class="tab" data-tab="google">Google Ads</button>
     </div>
@@ -198,15 +239,31 @@
     <div class="panel" id="cos-targets"><h2>Objectif du mois &amp; projection</h2><div class="loading">Chargement…</div></div>
     <div class="seclabel" data-chap="Évolution">Évolution quotidienne</div>
     <div class="panel"><h2>Dépense pub vs CA Shopify &amp; COS</h2><div class="chartbox"><canvas id="cos-chart"></canvas></div></div>
-    <div class="seclabel" data-chap="NL test">🇳🇱 Nederland test (hors COS principal, depuis le 03/07)</div>
+    <div class="seclabel" id="sec-test-europe" data-chap="Test Europe">🇪🇺 Test Europe · AT-DE-ES-IT-NL-PT (hors COS principal, depuis le 03/07)</div>
     <div class="panel" id="nl-block">
-      <div class="subcap" style="margin:0 0 10px">Campagnes Meta/Google « NL » + CA livré aux Pays-Bas. Ces coûts et revenus sont <b>retirés</b> du tableau Performance &amp; COS principal ci-dessous.</div>
+      <div class="subcap" style="margin:0 0 10px">Campagnes Meta/Google du test (anciennes « NL - … » + nouvelles « AT-DE-ES-IT-NL-PT - … ») + CA livré en AT/DE/ES/IT/NL/PT. Ces coûts et revenus sont <b>retirés</b> du tableau Performance &amp; COS principal ci-dessous.</div>
       <div id="nl-body" class="loading">Chargement…</div>
+      <div style="margin-top:12px">
+        <button class="ctbtn" id="eu-toggle" onclick="toggleEuCountries()">▸ Détail par pays</button>
+        <span id="eu-metric" style="display:none;margin-left:8px">
+          <span class="plbl" style="margin-right:4px">Métrique</span>
+          <button class="ctbtn on" onclick="setEuMetric('ca',this)">CA</button>
+          <button class="ctbtn" onclick="setEuMetric('orders',this)">Cmd</button>
+          <button class="ctbtn" onclick="setEuMetric('sessions',this)">Sessions</button>
+          <button class="ctbtn" onclick="setEuMetric('cvr',this)">CVR</button>
+          <button class="ctbtn" onclick="setEuMetric('atv',this)">ATV</button>
+        </span>
+        <div id="eu-countries" style="display:none;margin-top:8px"></div>
+      </div>
     </div>
+    <div class="seclabel" data-chap="Braderies">🏷️ Ventes Braderies <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(canal Syncio / thebradery — hors CA & COS principal)</span></div>
+    <div class="panel" id="braderie-block"><div id="braderie-body" class="loading">Chargement…</div></div>
     <div class="seclabel" data-chap="Performance">📊 Performance &amp; COS</div>
     <div class="panel" id="perf-block"><div id="perf-body" class="loading">Chargement…</div></div>
     <div class="seclabel" data-chap="Clients">👥 Clients · nouveaux vs fidèles</div>
     <div class="panel" id="cust-block"><div id="cust-body" class="loading">Chargement…</div></div>
+    <div class="seclabel" id="sec-lpl-club" data-chap="LPL Club">🎟️ LPL Club · fidélité</div>
+    <div class="panel" id="lplclub-block"><div id="lplclub-body" class="loading">Chargement…</div></div>
     <div class="seclabel" data-chap="Acquisition">🎯 Acquisition web · coût d'un nouveau client <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(tous canaux)</span></div>
     <div class="panel" id="acq-block"><div id="acq-body" class="loading">Chargement…</div></div>
     <div class="seclabel" data-chap="ROPO">Omnicanal · effet ROPO (mensuel, tous canaux)</div>
@@ -247,7 +304,7 @@
     <div class="panel"><h2>Coût, Conversions, CTR &amp; ROAS / jour</h2><div class="chartbox"><canvas id="meta-chart"></canvas></div></div>
     <div class="seclabel" data-chap="Campagnes">Par campagne</div>
     <div class="panel"><h2>Par campagne</h2><div id="meta-table" class="loading">Chargement…</div></div>
-    <div class="seclabel" data-chap="NL test">🇳🇱 Nederland test <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(isolé du principal, depuis 03/07)</span></div>
+    <div class="seclabel" data-chap="Test Europe">🇪🇺 Test Europe · AT-DE-ES-IT-NL-PT <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(isolé du principal, depuis 03/07)</span></div>
     <div class="panel" id="meta-nl-block"><div id="meta-nl" class="loading">Chargement…</div></div>
   </div>
 
@@ -255,13 +312,25 @@
     <div id="google-empty"></div>
     <div class="seclabel" data-chap="Indicateurs">Indicateurs du mois · MTD (jusqu'à hier)</div>
     <div class="kpis" id="google-kpis"></div>
+    <div class="seclabel" data-chap="Alertes">Pilotage · alertes Google</div>
+    <div class="panel">
+      <h2>Alertes · campagnes &amp; asset groups · plancher ROI {{ roi_floor }}</h2>
+      <div class="subtabs" id="gads-win-tabs">
+        <button class="subtab" data-win="1">1 JOUR</button>
+        <button class="subtab active" data-win="3">3 JOURS</button>
+        <button class="subtab" data-win="7">7 JOURS</button>
+      </div>
+      <div id="gads-alerts" class="loading">Chargement des alertes…</div>
+    </div>
     <div class="seclabel" data-chap="Évolution">Évolution quotidienne</div>
-    <div class="panel"><h2>Coût &amp; Valeur de conversion / jour</h2><div class="chartbox"><canvas id="google-chart"></canvas></div></div>
+    <div class="panel"><h2>Coût, Valeur de conversion &amp; ROI / jour</h2><div class="chartbox"><canvas id="google-chart"></canvas></div></div>
     <div class="seclabel" data-chap="Campagnes">Détail par campagne &amp; PMax</div>
     <div class="panel"><h2>Par type de campagne</h2><div id="google-bytype" class="loading">Chargement…</div></div>
     <div class="panel"><h2>Par campagne</h2><div id="google-table" class="loading">Chargement…</div></div>
     <div class="panel"><h2>Asset groups — PMax (groupes de composants)</h2><div id="google-assets" class="loading">Chargement…</div></div>
-    <div class="seclabel" data-chap="NL test">🇳🇱 Nederland test <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(isolé du principal, depuis 03/07)</span></div>
+    <div class="seclabel" data-chap="PMax">🔍 Diagnostic PMax <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(30 derniers jours)</span></div>
+    <div class="panel" id="pmax-block"><div id="pmax-body" class="loading">Chargement…</div></div>
+    <div class="seclabel" data-chap="Test Europe">🇪🇺 Test Europe · AT-DE-ES-IT-NL-PT <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(isolé du principal, depuis 03/07)</span></div>
     <div class="panel" id="google-nl-block"><div id="google-nl" class="loading">Chargement…</div></div>
   </div>
 
@@ -288,6 +357,46 @@
     <div class="panel"><h2>Détail par canal · 7 derniers jours <span style="font-weight:400;font-size:.78rem;color:var(--muted)">vs 7 précédents</span></h2>
       <div id="cro-channels" class="loading">Chargement…</div></div>
   </div>
+
+  <div class="view" id="view-products">
+    <div class="panel" id="prod-controls">
+      <div class="prodbar">
+        <input id="prod-search" class="psearch" placeholder="🔍 Rechercher (nom ou SKU)…" autocomplete="off" style="flex:1;min-width:180px">
+        <label class="plbl">Période
+          <select id="prod-days">
+            <option value="1">1 jour</option><option value="3">3 jours</option>
+            <option value="7">7 jours</option><option value="14" selected>14 jours</option>
+            <option value="28">28 jours</option><option value="90">90 jours</option>
+          </select>
+        </label>
+        <label class="plbl">Tag collection
+          <select id="prod-dtag"><option value="">Tous</option></select>
+        </label>
+        <span class="plbl" style="margin-left:6px">Canal</span>
+        <div class="ctoggle" id="prod-channel">
+          <button class="ctbtn on" data-ch="all">Web + Boutiques</button>
+          <button class="ctbtn" data-ch="web">Web</button>
+          <button class="ctbtn" data-ch="retail">Boutiques</button>
+        </div>
+      </div>
+      <div class="prodbar" style="margin-top:9px">
+        <div class="ctoggle" id="prod-cat">
+          <button class="ctbtn on" data-c="all">Tous</button>
+          <button class="ctbtn" data-c="Optique">Optique</button>
+          <button class="ctbtn" data-c="Solaire">Solaire</button>
+          <button class="ctbtn" data-c="Autre">Autre</button>
+        </div>
+        <span class="plbl" style="margin-left:6px">Genre</span>
+        <div class="gchecks" id="prod-gender">
+          <label><input type="checkbox" value="Homme" checked> Homme</label>
+          <label><input type="checkbox" value="Femme" checked> Femme</label>
+          <label><input type="checkbox" value="Mixte" checked> Mixte</label>
+        </div>
+        <label class="plbl" style="margin-left:auto"><input type="checkbox" id="prod-oos"> Rupture uniquement</label>
+      </div>
+    </div>
+    <div class="panel"><div id="prod-body" class="loading">Chargement…</div></div>
+  </div>
   </div>
   </div>
 </div>
@@ -298,7 +407,9 @@ const eur=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximum
 const eur2=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
 const num=new Intl.NumberFormat("fr-FR");
 const pct=v=>v==null?"—":(v*100).toFixed(1).replace(".",",")+" %";
-const frDay=iso=>new Date(iso+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+const _lloc=()=>{try{return LANG==='en'?'en-GB':'fr-FR';}catch(e){return 'fr-FR';}};
+const _L=(s)=>{try{return (LANG==='en'&&I18N_DICT[s])?I18N_DICT[s]:s;}catch(e){return s;}};
+const frDay=iso=>new Date(iso+"T12:00:00Z").toLocaleDateString(_lloc(),{day:"numeric",month:"short"});
 const charts={};
 let DAYS=30;
 const PAL=["#FCE4EA","#FCEFD9","#F7F8DE","#E2F7DF","#DBF6F2","#DEF0FC"];
@@ -318,6 +429,8 @@ function gradTo(v,mn,mx,rgb){
 // teintes très claires (lisibilité : comme la table COS)
 const gradBlue=(v,mn,mx)=>gradTo(v,mn,mx,[219,239,252]);   // blanc -> bleu pastel
 const gradRed =(v,mn,mx)=>gradTo(v,mn,mx,[252,224,232]);   // blanc -> rose pastel
+const gradGreen=(v,mn,mx)=>gradTo(v,mn,mx,[214,240,221]);  // blanc -> vert pastel (grille CA)
+const gradAmber=(v,mn,mx)=>gradTo(v,mn,mx,[255,224,178]);  // blanc -> ambre (potentiel eCom)
 // dégradé divergent doux : bas = bleu pastel, milieu = blanc, haut = rose (inverse si rev)
 function gradBR(v,mn,mx,rev){
   if(v==null||!isFinite(v)||mn==null||mx==null||mx<=mn)return"";
@@ -379,25 +492,7 @@ async function loadHealth(){
   const msg=d.overall!=="ok"
     ? (notes || `<div class="msg">⚠️ Données partiellement incomplètes — une source n'est pas à jour (jeton expiré, scraper Mac à l'arrêt, ou trou d'historique). Lis les chiffres récents avec prudence.</div>`) : "";
   el.className="health"+(d.overall==="ok"?"":" "+d.overall);
-  el.innerHTML=`<span class="ht">État des données</span>${items}`+
-    `<button class="btn" id="btn-rs" style="margin-left:auto">Rafraîchir les sessions</button>${msg}`;
-  document.getElementById("btn-rs").addEventListener("click",refreshSessions);
-}
-async function refreshSessions(){
-  const b=document.getElementById("btn-rs"); if(!b)return;
-  b.disabled=true; b.textContent="Lancement…";
-  try{
-    const r=await fetch("/api/refresh-sessions",{method:"POST"}); const d=await r.json();
-    if(d.ok){
-      b.textContent="Lancé ✓ — mise à jour…";
-      // le job lit le Sheet puis écrit BigQuery (~30-90 s) : on recharge la santé plusieurs fois
-      [30000,60000,90000,150000].forEach(t=>setTimeout(loadHealth,t));
-      setTimeout(()=>{b.disabled=false;b.textContent="Rafraîchir les sessions";},150000);
-    } else {
-      b.textContent="Échec"; b.disabled=false;
-      alert("Échec du déclenchement du job sessions :\n"+(d.detail||d.error||"erreur inconnue"));
-    }
-  }catch(e){ b.textContent="Échec"; b.disabled=false; alert("Erreur réseau : "+e); }
+  el.innerHTML=`<span class="ht">État des données</span>${items}${msg}`;
 }
 
 async function loadTargets(){
@@ -434,9 +529,9 @@ async function loadTargets(){
     <div class="kpis" style="margin:0">${bloc("Chiffre d'affaires",d.ca,false)}${bloc("Dépense perf (Meta+Google)",d.spend,true)}${blocCos(d.cos)}</div>`;
 }
 
-const weekLabel=r=>"sem. "+new Date(r.label+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+const weekLabel=r=>(LANG==='en'?"wk ":"sem. ")+new Date(r.label+"T12:00:00Z").toLocaleDateString(_lloc(),{day:"numeric",month:"short"});
 weekLabel.title="Semaine (lun.)";
-const monthLabel=r=>new Date(r.label+"T12:00:00Z").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+const monthLabel=r=>new Date(r.label+"T12:00:00Z").toLocaleDateString(_lloc(),{month:"long",year:"numeric"});
 monthLabel.title="Mois";
 function renderPeriodTable(containerId,rows,labelFn){
   const PCOLS=[
@@ -447,6 +542,7 @@ function renderPeriodTable(containerId,rows,labelFn){
     {label:"ATV",     key:"atv",     cmp:"atv_cmp",     fmt:eur.format,hi:true, kind:"pct",good:true},
     {label:"Dépense", key:"spend",   cmp:"spend_cmp",   fmt:eur.format,hi:false,kind:"pct",good:null},
     {label:"COS",     key:"cos",     cmp:"cos_cmp",     fmt:pct,       hi:false,kind:"pts",good:false},
+    {label:"CPA",     key:"cpa",     cmp:"cpa_cmp",     fmt:eur2.format,hi:false,kind:"pct",good:false},
   ];
   // Dégradé calculé sur les périodes COMPLÈTES uniquement (la période en cours, partielle,
   // ne doit pas biaiser l'échelle et n'est pas teintée).
@@ -463,10 +559,31 @@ function renderPeriodTable(containerId,rows,labelFn){
   document.getElementById(containerId).innerHTML=h+"</tbody></table>";
 }
 // ---- Grain global (Jour/Semaine/Mois) : pilote tous les blocs temporels de la Vue d'ensemble ----
-let _grain='day', _ovData=null, _periodsData=null, _custData=null, _acqData=null;
+let _grain='day', _ovData=null, _periodsData=null, _custData=null, _acqData=null, _braderieData=null;
 function setGrain(g){ _grain=g;
   document.querySelectorAll('#grain-global .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));
-  renderPerf(); renderCust(); renderAcq(); renderMix(); renderComptoir(); renderGender(); renderNl();
+  renderPerf(); renderCust(); renderAcq(); renderMix(); renderComptoir(); renderGender(); renderNl(); renderBraderie(); renderEuCountries(); renderLplClub();
+  updatePeriodVis();
+}
+async function loadBraderie(){ _braderieData=await getJSON("/api/braderie"); renderBraderie(); }
+function renderBraderie(){
+  const el=document.getElementById('braderie-body'); if(!el)return;
+  const d=_braderieData; if(!d){el.innerHTML='';return;}
+  if(!d.ok){el.innerHTML=`<div class="empty">Braderies indisponible : ${d.error||'erreur'}</div>`;return;}
+  let rows=d[_grain]||[];
+  // frDay prend une string (date iso) ; weekLabel/monthLabel prennent la ligne (lisent r.label).
+  const lbl=_grain==='day'?(r=>frDay(r.label)):_grain==='week'?weekLabel:monthLabel;
+  if(_grain==='day') rows=rows.slice(0,7);   // 7 derniers jours pour l'instant
+  const per=_grain==='day'?'Jour':_grain==='week'?'Semaine':'Mois';
+  const head=`<div class="subcap" style="margin:0 0 8px">Commandes via le canal Braderie (Syncio / logistique@thebradery.com). CA net TTC, <b>non compté</b> dans le COS.</div>`;
+  if(!rows.length){el.innerHTML=head+`<div class="empty">Aucune vente Braderie sur la période.</div>`;return;}
+  const tot=rows.reduce((a,r)=>({c:a.c+(r.cmd||0),ca:a.ca+(r.ca||0)}),{c:0,ca:0});
+  let h=head+`<table><thead><tr><th>${per}</th><th>Cmd</th><th>CA</th><th>ATV</th></tr></thead><tbody>`;
+  rows.forEach(r=>{const a=r.cmd?r.ca/r.cmd:null;
+    h+=`<tr><td>${lbl(r)}</td><td>${num.format(r.cmd||0)}</td><td>${eur.format(r.ca||0)}</td><td>${a!=null?eur.format(a):'—'}</td></tr>`;});
+  const ta=tot.c?tot.ca/tot.c:null;
+  h+=`<tr style="font-weight:700;border-top:2px solid var(--line)"><td>Total</td><td>${num.format(tot.c)}</td><td>${eur.format(tot.ca)}</td><td>${ta!=null?eur.format(ta):'—'}</td></tr>`;
+  el.innerHTML=h+`</tbody></table>`;
 }
 function renderDailyPerf(){
   const el=document.getElementById('perf-body'); if(!el)return;
@@ -483,6 +600,7 @@ function renderDailyPerf(){
     {label:"Google",get:r=>r.google_spend,fmt:eur.format,hi:false},
     {label:"Dépense",get:r=>r.ad_spend_total,fmt:eur.format,hi:false,dot:"spend"},
     {label:"COS",get:r=>r.cos_blended,fmt:pct,hi:false,dot:"cos"},
+    {label:"CPA",get:r=>(r.orders?r.ad_spend_total/r.orders:null),fmt:eur2.format,hi:false},
   ];
   const ext=COLS.map(c=>{const vs=rows.map(c.get).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
   const bg=(i,v)=>gradBg(v,ext[i][0],ext[i][1],COLS[i].hi);
@@ -654,6 +772,7 @@ function nlTable(rows){
     {label:'Google',get:r=>r.google,fmt:eur.format,hi:false},
     {label:'Dépense',get:r=>r.spend,fmt:eur.format,hi:false},
     {label:'COS',get:r=>r.cos,fmt:pct,hi:false},
+    {label:'CPA',get:r=>r.cpa,fmt:eur2.format,hi:false},
   ];
   const full=rows.filter(r=>!_periodInProgress(r.period)), base=full.length?full:rows;
   const ext=cols.map(c=>{const vs=base.map(c.get).filter(x=>x!=null&&isFinite(x));return vs.length?[Math.min(...vs),Math.max(...vs)]:[null,null];});
@@ -667,11 +786,94 @@ function renderNl(){
   const body=document.getElementById('nl-body'); if(!body)return;
   if(!_nlData||!_nlData.ok){body.innerHTML=`<div class="empty">Indisponible : ${_nlData&&_nlData.error?_nlData.error:'erreur'}</div>`;return;}
   body.innerHTML=nlTable(_nlData[_grain]||[])+
-    `<div class="cdef"><b>NEDERLAND TEST</b> — CA/Cmd = commandes livrées aux Pays-Bas ; Dépense = campagnes Meta (NL - CVR - DABA / PRO - TESTING) + Google (LPL - NL - PMax - Solaires) ; COS = dépense ÷ CA. <b>Sessions</b> = trafic GA4 géolocalisé Pays-Bas (base légèrement différente du « shipping NL » des commandes), CVR = Cmd ÷ Sessions. Segment sorti du tableau principal depuis le 03/07/2026.</div>`;
+    `<div class="cdef"><b>TEST EUROPE · AT-DE-ES-IT-NL-PT</b> — CA/Cmd = commandes livrées en AT/DE/ES/IT/NL/PT ; Dépense = campagnes Meta &amp; Google du test (anciennes « NL - … » qui s'éteignent + nouvelles « AT-DE-ES-IT-NL-PT - … » qui prennent le relais) ; COS = dépense ÷ CA. <b>Sessions</b> = trafic GA4 géolocalisé sur ces 6 pays (base légèrement différente du « shipping » des commandes), CVR = Cmd ÷ Sessions. Segment sorti du tableau principal depuis le 03/07/2026.</div>`;
 }
 function setNlGrain(g){_nlGrain=g; renderNl();
   document.querySelectorAll('#nl-grain .ctbtn').forEach(b=>b.classList.toggle('on',b.dataset.g===g));}
 async function loadNl(){ _nlData=await getJSON("/api/nl"); renderNl(); }
+// ---- Test Europe : détail par pays (v1 demande) ----
+let _euOpen=false, _euData=null, _euMetric='ca';
+function toggleEuCountries(){
+  _euOpen=!_euOpen;
+  document.getElementById('eu-toggle').textContent=(_euOpen?'▾':'▸')+' Détail par pays';
+  document.getElementById('eu-metric').style.display=_euOpen?'':'none';
+  document.getElementById('eu-countries').style.display=_euOpen?'':'none';
+  if(_euOpen && !_euData) loadEuCountries(); else renderEuCountries();
+}
+function setEuMetric(m,btn){_euMetric=m;
+  document.querySelectorAll('#eu-metric .ctbtn').forEach(b=>b.classList.toggle('on',b===btn));
+  renderEuCountries();
+}
+async function loadEuCountries(){
+  const el=document.getElementById('eu-countries'); if(!el)return;
+  el.innerHTML='<div class="loading">Chargement…</div>';
+  _euData=await getJSON('/api/europe-countries'); renderEuCountries();
+}
+function renderEuCountries(){
+  const el=document.getElementById('eu-countries'); if(!el||!_euOpen)return;
+  const d=_euData; if(!d||!d.ok){el.innerHTML=`<div class="empty">Indisponible${d&&d.error?' : '+d.error:''}.</div>`;return;}
+  const rows=d[_grain]||[];
+  if(!rows.length){el.innerHTML=`<div class="empty">Pas de données pays sur la période.</div>`;return;}
+  const CC=['AT','DE','ES','IT','NL','PT'], FLAG={AT:'🇦🇹',DE:'🇩🇪',ES:'🇪🇸',IT:'🇮🇹',NL:'🇳🇱',PT:'🇵🇹'};
+  const lblFn=_grain==='day'?(r=>frDay(r.label)):_grain==='week'?weekLabel:monthLabel;
+  const M=_euMetric;
+  const val=o=> !o?null : M==='cvr'?(o.sessions?o.orders/o.sessions:null) : M==='atv'?(o.orders?o.ca/o.orders:null) : o[M];
+  const fmt=v=> v==null?'—' : M==='cvr'?pct(v) : (M==='ca'||M==='atv')?eur.format(v):num.format(Math.round(v));
+  const byLabel={}; rows.forEach(r=>{(byLabel[r.label]=byLabel[r.label]||{})[r.country]=r;});
+  const labels=Object.keys(byLabel).sort().reverse();
+  const tot={}; CC.forEach(c=>tot[c]={sessions:0,orders:0,ca:0});
+  rows.forEach(r=>{const t=tot[r.country]; if(t){t.sessions+=r.sessions||0;t.orders+=r.orders||0;t.ca+=r.ca||0;}});
+  const cells=[]; labels.forEach(L=>CC.forEach(c=>{const v=val(byLabel[L][c]); if(v!=null)cells.push(v);}));
+  const rng=[Math.min(...cells,0),Math.max(...cells,0)];
+  const mName={ca:'CA',orders:'Cmd',sessions:'Sessions',cvr:'CVR',atv:'ATV'}[M];
+  const per=_grain==='day'?'jour':_grain==='week'?'semaine':'mois';
+  let h=`<div class="subcap" style="margin:0 0 6px"><b>${mName}</b> par pays et par ${per} (suit le grain global). Spend non ventilé par pays — cf. dépense globale du segment ci-dessus.</div>
+    <table><thead><tr><th>Période</th>${CC.map(c=>`<th>${FLAG[c]} ${c}</th>`).join('')}</tr></thead><tbody>`;
+  labels.forEach(L=>{h+=`<tr><td>${lblFn({label:L})}</td>`+CC.map(c=>{const v=val(byLabel[L][c]);
+    return `<td style="background:${v!=null?gradBlue(v,rng[0],rng[1]):''}">${fmt(v)}</td>`;}).join('')+`</tr>`;});
+  h+=`<tr style="font-weight:700;border-top:2px solid var(--line)"><td>Total</td>`+CC.map(c=>`<td>${fmt(val(tot[c]))}</td>`).join('')+`</tr>`;
+  el.innerHTML=h+`</tbody></table>`;
+}
+// ---- LPL Club : taux d'adhésion web (par grain) + réachat club/no-club ----
+let _lplAdo=null, _lplCoh=null;
+async function loadLplClub(){
+  const el=document.getElementById('lplclub-body'); if(!el)return;
+  [_lplAdo,_lplCoh]=await Promise.all([getJSON('/api/lpl-club/adoption'),getJSON('/api/lpl-club/cohort')]);
+  renderLplClub();
+}
+function renderLplClub(){
+  const el=document.getElementById('lplclub-body'); if(!el)return;
+  let h='';
+  // 1) Taux d'adhésion web, par grain global
+  if(_lplAdo&&_lplAdo.ok){
+    const rows=_lplAdo[_grain]||[];
+    const lblFn=_grain==='day'?(r=>frDay(r.label)):_grain==='week'?weekLabel:monthLabel;
+    const per=_grain==='day'?'Jour':_grain==='week'?'Semaine':'Mois';
+    h+=`<div class="subcap" style="margin:0 0 6px"><b>Taux d'adhésion web</b> = nouvelles adhésions ÷ commandes web (par ${per.toLowerCase()}).</div>`;
+    if(!rows.length) h+=`<div class="empty">Pas encore de données d'adhésion.</div>`;
+    else{
+      const rates=rows.map(r=>r.orders?r.adh/r.orders:null).filter(x=>x!=null);
+      const rr=[Math.min(...rates,0),Math.max(...rates,0)];
+      h+=`<table><thead><tr><th>${per}</th><th>Adhésions</th><th>Cmd web</th><th>Taux d'adhésion</th></tr></thead><tbody>`;
+      rows.forEach(r=>{const t=r.orders?r.adh/r.orders:null;
+        h+=`<tr><td>${lblFn({label:r.label})}</td><td>${num.format(r.adh||0)}</td><td>${num.format(r.orders||0)}</td>
+          <td style="background:${t!=null?gradBlue(t,rr[0],rr[1]):''};font-weight:600">${t!=null?pct(t):'—'}</td></tr>`;});
+      h+=`</tbody></table>`;
+    }
+  } else h+=`<div class="empty">Adhésion indisponible${_lplAdo&&_lplAdo.error?' : '+_lplAdo.error:''}.</div>`;
+  // 2) Réachat club vs no-club (cumul)
+  const cstart=_lplCoh&&_lplCoh.cohort_start?frDay(_lplCoh.cohort_start):null;
+  h+=`<div class="hz"></div><div class="subcap" style="margin:8px 0 6px"><b>Réachat : LPL Club vs Sans Club</b> — clients web dont la <b>1re commande date du ${cstart||'lancement club'}</b> (groupes comparables). Réachat = % ayant passé ≥ 2 commandes.</div>`;
+  if(_lplCoh&&_lplCoh.ok&&(_lplCoh.rows||[]).length){
+    h+=`<table><thead><tr><th>Segment</th><th>Clients</th><th>Cmd moy.</th><th>Taux réachat (2+)</th><th>Taux 3+ achats</th><th>CA moyen/client</th><th>Panier moyen</th></tr></thead><tbody>`;
+    _lplCoh.rows.forEach(r=>{h+=`<tr><td><b>${r.segment}</b></td><td>${num.format(r.nb_clients||0)}</td>
+      <td>${r.commandes_moy!=null?r.commandes_moy.toFixed(2):'—'}</td><td><b>${r.taux_reachat!=null?r.taux_reachat+' %':'—'}</b></td>
+      <td>${r.taux_3plus!=null?r.taux_3plus+' %':'—'}</td><td>${eur.format(r.ca_moy_client||0)}</td><td>${eur.format(r.panier_moy||0)}</td></tr>`;});
+    h+=`</tbody></table>
+      <div class="cdef"><b>Clients</b> : clients uniques ayant passé ≥ 1 commande web. · <b>Cmd moy.</b> : nombre moyen de commandes par client. · <b>Taux réachat (2+)</b> : % de clients ayant commandé ≥ 2 fois. · <b>Taux 3+ achats</b> : % ayant commandé ≥ 3 fois. · <b>CA moyen/client</b> : cumul total dépensé par client, en moyenne. · <b>Panier moyen</b> : valeur moyenne d'une commande (calculé par client puis moyenné).</div>`;
+  } else h+=`<div class="empty">Cohortes indisponible${_lplCoh&&_lplCoh.error?' : '+_lplCoh.error:''}.</div>`;
+  el.innerHTML=h;
+}
 let _genData=null, _genGrain='month';
 function _mmx(vals){const v=vals.filter(x=>x!=null);return v.length?[Math.min(...v),Math.max(...v)]:[null,null];}
 function genderTable(rows){
@@ -729,7 +931,7 @@ async function loadAcquisition(){
   if(el) el.innerHTML=(_acqData&&_acqData.ok)?(ropoBlock(_acqData.ropo)||`<div class="empty">Pas encore de données ROPO.</div>`):`<div class="empty">ROPO indisponible.</div>`;
 }
 async function loadCos(){
-  loadTargets(); loadPeriods(); loadCustomers(); loadAcquisition(); loadPriceMix(); loadComptoir(); loadGender(); loadClaudeUsage(); loadNl();
+  loadTargets(); loadPeriods(); loadCustomers(); loadAcquisition(); loadPriceMix(); loadComptoir(); loadGender(); loadClaudeUsage(); loadNl(); loadBraderie(); loadLplClub();
   const d=await getJSON(`/api/overview?days=${DAYS}`); if(!d)return;
   _ovData=d;
   const m=d.mtd, tr=d.trends;
@@ -743,10 +945,10 @@ async function loadCos(){
     card("COS blended (MTD)",pct(m.cos),tch(tr.cos,true),m.cos!=null&&m.cos>0.3);
   const rows=d.rows, labels=rows.map(r=>frDay(r.date));
   mkChart("cos-chart",{data:{labels,datasets:[
-    {type:"bar",label:"Dépense Meta",data:rows.map(r=>r.meta_spend),backgroundColor:C.meta,stack:"a"},
-    {type:"bar",label:"Dépense Google",data:rows.map(r=>r.google_spend),backgroundColor:C.google,stack:"a"},
-    {type:"line",label:"CA Shopify",data:rows.map(r=>r.ca_shopify),borderColor:C.ca,backgroundColor:C.ca,tension:.3,yAxisID:"y"},
-    {type:"line",label:"COS %",data:rows.map(r=>r.cos_blended==null?null:r.cos_blended*100),borderColor:C.cos,backgroundColor:C.cos,borderDash:[5,4],tension:.3,yAxisID:"y1"}
+    {type:"bar",label:_L("Dépense Meta"),data:rows.map(r=>r.meta_spend),backgroundColor:C.meta,stack:"a"},
+    {type:"bar",label:_L("Dépense Google"),data:rows.map(r=>r.google_spend),backgroundColor:C.google,stack:"a"},
+    {type:"line",label:_L("CA Shopify"),data:rows.map(r=>r.ca_shopify),borderColor:C.ca,backgroundColor:C.ca,tension:.3,yAxisID:"y"},
+    {type:"line",label:_L("COS %"),data:rows.map(r=>r.cos_blended==null?null:r.cos_blended*100),borderColor:C.cos,backgroundColor:C.cos,borderDash:[5,4],tension:.3,yAxisID:"y1"}
   ]},options:{maintainAspectRatio:false,scales:{
     y:{position:"left",stacked:true,beginAtZero:true,ticks:{callback:v=>num.format(v)+" €"}},x:{stacked:true},
     y1:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},ticks:{callback:v=>v+" %"}}},
@@ -771,7 +973,7 @@ async function loadMeta(){
     roas3Card(d.roas3);
   const labels=dd.map(r=>frDay(r.date));
   mkChart("meta-chart",{data:{labels,datasets:[
-    {type:"bar",label:"Coût (€)",data:dd.map(r=>r.spend),backgroundColor:C.meta,yAxisID:"yCost",order:3},
+    {type:"bar",label:_L("Coût (€)"),data:dd.map(r=>r.spend),backgroundColor:C.meta,yAxisID:"yCost",order:3},
     {type:"line",label:"Conversions",data:dd.map(r=>r.purchases),borderColor:C.conv,backgroundColor:C.conv,tension:.3,yAxisID:"yConv",order:1},
     {type:"line",label:"ROAS",data:dd.map(r=>r.roas),borderColor:C.roas,backgroundColor:C.roas,tension:.3,yAxisID:"yRatio",order:1},
     {type:"line",label:"CTR %",data:dd.map(r=>r.ctr==null?null:r.ctr*100),borderColor:C.cpa,backgroundColor:C.cpa,borderDash:[4,3],tension:.3,yAxisID:"yRatio",order:1},
@@ -791,7 +993,7 @@ async function loadMeta(){
 function renderMetaNl(nl){
   const el=document.getElementById("meta-nl"); if(!el)return;
   const camps=(nl&&nl.campaigns)||[];
-  if(!camps.length){el.innerHTML=`<div class="empty">Aucune dépense Meta « NL » sur la période (test démarré le 03/07/2026).</div>`;return;}
+  if(!camps.length){el.innerHTML=`<div class="empty">Aucune dépense Meta du test Europe sur la période (test démarré le 03/07/2026).</div>`;return;}
   const t=camps.reduce((a,c)=>({s:a.s+(c.spend||0),v:a.v+(c.value||0),p:a.p+(c.purchases||0)}),{s:0,v:0,p:0});
   const roas=t.s?t.v/t.s:0, cpa=t.p?t.s/t.p:0;
   let h=`<div class="kpis">${card("Dépense",eur.format(t.s))}${card("Achats",num.format(t.p))}${card("Valeur",eur.format(t.v))}${card("ROAS",roas.toFixed(2),"",roas<ROI_FLOOR)}${roas3Card(nl.roas3)}</div>`;
@@ -818,6 +1020,7 @@ function renderMetaAlerts(d){
   const rz=v=>v==null?"—":v.toFixed(2);
   const AB={LOWER:["⬇️ Réduire / pause","ab-red"],CUT_DRAINERS:["✂️ Couper ad(s)","ab-amber"],
             FEED_STARVED:["⛽ Ré-alimenter / segmenter","ab-amber"],
+            HOLD_DECLINING:["✋ Ne pas scaler · tendance en baisse","ab-red"],
             CUT_THEN_SCALE:["✂️→⬆️ Couper puis scaler","ab-amber"],SCALE:["⬆️ Scaler","ab-green"],
             REVIEW_UNDER:["🔍 Sous-délivré","ab-amber"]};
   const budTxt=a=>(a.budget_now!=null?eur.format(a.budget_now):"—")+(a.util_3d!=null?` · util ${a.util_3d}%`:"")+(a.budget_note?`<span class="sub">${a.budget_note}</span>`:"");
@@ -850,7 +1053,8 @@ function renderMetaAlerts(d){
       <div class="alert green"><h3>🏆 Top ads · ROAS ≥ ${d.roi_floor}</h3>
         ${list(d.top_ads,a=>`<tr><td>${a.ad||"—"}</td><td class="tg">${rz(a.roas)}</td><td>${eur.format(a.spend)}</td></tr>`)}</div>
     </div>
-    <div class="subcap" style="margin-top:10px">${d.ignored_ads||0} ad(s) ignorée(s) (&lt;${G}€/${W}j : diffusion trop faible pour juger). « Avant » = les ${W} jours précédents. Scaler par paliers ~20 % / 3-4 j, éviter les édits trop fréquents (apprentissage).</div>`;
+    <div class="subcap" style="margin-top:10px">${d.ignored_ads||0} ad(s) ignorée(s) (&lt;${G}€/${W}j : diffusion trop faible pour juger). « Avant » = les ${W} jours précédents. Scaler par paliers ~20 % / 3-4 j, éviter les édits trop fréquents (apprentissage).
+      <br><b>Règles de scale :</b> on ne propose un scale qu'au-dessus de <b>ROAS ${d.scale_floor??3}</b> (sous ce seuil, aucune alerte de scale n'est émise) et jamais si le ROAS <b>baisse de ${Math.abs(d.scale_trend_block??15)} %</b> ou plus vs la période précédente — dans ce cas l'adset est marqué « ✋ Ne pas scaler ». Le plancher de <b>coupe</b> reste ROAS ${d.roi_floor}.</div>`;
 }
 
 async function loadGoogle(){
@@ -868,9 +1072,13 @@ async function loadGoogle(){
     card("Valeur conv. (MTD)",eur.format(m.value||0));
   const labels=d.daily.map(r=>frDay(r.date));
   mkChart("google-chart",{data:{labels,datasets:[
-    {type:"bar",label:"Coût",data:d.daily.map(r=>r.cost),backgroundColor:C.google},
-    {type:"line",label:"Valeur conv.",data:d.daily.map(r=>r.value),borderColor:C.ca,backgroundColor:C.ca,tension:.3},
-  ]},options:{maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{callback:v=>num.format(v)+" €"}}},plugins:{legend:{labels:{boxWidth:12}}}}});
+    {type:"bar",label:_L("Coût"),data:d.daily.map(r=>r.cost),backgroundColor:C.google,yAxisID:"y"},
+    {type:"line",label:_L("Valeur conv."),data:d.daily.map(r=>r.value),borderColor:C.ca,backgroundColor:C.ca,tension:.3,yAxisID:"y"},
+    {type:"line",label:_L("ROI (valeur/coût)"),data:d.daily.map(r=>r.roas),borderColor:C.roas,backgroundColor:C.roas,tension:.3,yAxisID:"yRoi"},
+  ]},options:{maintainAspectRatio:false,scales:{
+    y:{position:"left",beginAtZero:true,ticks:{callback:v=>num.format(v)+" €"}},
+    yRoi:{position:"right",beginAtZero:true,grid:{drawOnChartArea:false},title:{display:true,text:"ROI"},ticks:{callback:v=>v.toFixed(1)}}},
+    plugins:{legend:{labels:{boxWidth:12}}}}});
   // par type
   let ht=`<table><thead><tr><th>Type</th><th>Coût</th><th>Conv.</th><th>Valeur</th><th>Coût/conv.</th><th>ROAS</th></tr></thead><tbody>`;
   d.by_type.forEach(c=>{const w=c.roas<ROI_FLOOR;ht+=`<tr><td><span class="pill">${c.campaign_type||"—"}</span></td>
@@ -885,11 +1093,255 @@ async function loadGoogle(){
   document.getElementById("google-table").innerHTML=h+"</tbody></table>";
   renderGoogleNl(d.nl);
   loadAssetGroups();
+  loadPmax();
+  loadGadsAlerts();
+}
+
+// ---------- Performance produit ----------
+let _prodState={days:14,category:"all",genders:["Homme","Femme","Mixte"],date_tag:"",q:"",oos:false,channel:"all"};
+let _prodDtagsLoaded=false, _prodTimer=null, _prodLast=null, _prodSortField=null;
+function _prodParams(){
+  const s=_prodState;
+  const p=new URLSearchParams({days:s.days,category:s.category,genders:s.genders.join(","),
+    date_tag:s.date_tag,q:s.q,channel:s.channel});
+  if(s.oos)p.set("oos","1");
+  return p.toString();
+}
+async function loadProducts(){
+  const el=document.getElementById("prod-body"); if(!el)return;
+  el.className="loading"; el.textContent="Chargement…";
+  const d=await getJSON("/api/products?"+_prodParams());
+  el.className="";
+  if(!d){el.innerHTML=`<div class="empty">Indisponible.</div>`;return;}
+  if(!d.ok){el.innerHTML=`<div class="empty">Indisponible : ${d.error||"erreur"}</div>`;return;}
+  if(!_prodDtagsLoaded){ // remplir le menu des tags collection une seule fois
+    const sel=document.getElementById("prod-dtag");
+    if(sel){(d.date_tags||[]).forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=t;sel.appendChild(o);});}
+    _prodDtagsLoaded=true;
+  }
+  // Potentiel eCom = vélocité web « manquante » vu la force retail (baseline = ratio web/retail
+  // moyen du magasin). N'a de sens qu'en vue Web + Boutiques (les 2 canaux visibles).
+  (function(){const rows=d.rows||[];
+    if((d.channel||'all')!=='all'){rows.forEach(r=>r.ecom_gap=null);return;}
+    let sw=0,sr=0; rows.forEach(r=>{sw+=r.web_vel||0;sr+=r.retail_vel||0;});
+    const R=sr>0?sw/sr:0;
+    rows.forEach(r=>{const gap=(r.retail_vel||0)*R-(r.web_vel||0);
+      r.ecom_gap=gap>0?Math.round(gap*1000)/1000:0;});})();
+  _prodSortField=null; _prodLast=d;   // nouvelle donnée -> tri serveur par défaut
+  el.innerHTML=renderProducts(d);
+}
+// Tri client décroissant sur les données déjà chargées (sans refetch).
+function sortProducts(field){
+  if(!_prodLast||!_prodLast.rows)return;
+  _prodSortField=field;
+  _prodLast.rows.sort((a,b)=>(b[field]||0)-(a[field]||0));
+  const el=document.getElementById("prod-body");
+  if(el)el.innerHTML=renderProducts(_prodLast);
+}
+function renderProducts(d){
+  const rows=d.rows||[];
+  const ch=d.channel||"all";  // all | web | retail : canal actif
+  if(!rows.length)return `<div class="empty">Aucun produit sur ces critères (période ${d.days} j${ch!=="all"?", canal "+(ch==="web"?"web":"boutiques"):""}).</div>`;
+  const velf=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2});
+  const sa=f=>_prodSortField===f?' ▼':'';   // flèche sur la colonne triée
+  // Métrique reine = vélocité (unités/jour) du canal actif ; sert totaux, heatmap et tri.
+  const velOf=r=> ch==="web"?r.web_vel   : ch==="retail"?r.retail_vel   : r.total_vel;
+  const uOf  =r=> ch==="web"?r.web_units : ch==="retail"?r.retail_units : r.total_units;
+  const rOf  =r=> ch==="web"?r.web_rev   : ch==="retail"?r.retail_rev   : r.total_rev;
+  const tVel=rows.reduce((a,r)=>a+velOf(r),0), tU=rows.reduce((a,r)=>a+uOf(r),0), tR=rows.reduce((a,r)=>a+rOf(r),0);
+  const gtag=g=>({Homme:"👨",Femme:"👩",Mixte:"⚥"}[g]||"");
+  // Ruptures : on masque le badge du canal non affiché.
+  const oos=r=>{let b="";if(r.oos_web&&ch!=="retail")b+=`<span class="badge-oos">Rupture web</span>`;
+    if(r.oos_retail&&ch!=="web")b+=`<span class="badge-oos" style="background:#fff4e5;color:#b9770e" title="En rupture dans ${r.retail_loc_oos} boutique(s) sur ${r.retail_loc_total}">Rupture ${r.retail_loc_oos}/${r.retail_loc_total} boutiques</span>`;return b;};
+  // Stock web : sous 50 → rouge si la fiche est vendable en ligne (ACTIVE + publiée),
+  // grisé si elle est dépubliée ou hors statut Active (stock bas mais non exposé au web).
+  const stockCell=r=>{const w=r.warehouse_available;
+    if(w==null)return `<td>—</td>`;
+    let st="";
+    if(w<50){const live=(r.status==="ACTIVE")&&(r.published_online===true);
+      st=live?"color:#c0392b;font-weight:700":"color:#9aa3ad";}
+    return `<td${st?` style="${st}"`:""}>${num.format(Math.round(w))}</td>`;};
+  // Réappro : date de livraison estimée (déjà filtrée sur le futur côté serveur), format « 12 Sept ».
+  // Affichée seulement si le produit est en rupture (web/retail) ou en stock rouge.
+  const incCell=r=>{const w=r.warehouse_available;
+    const red=w!=null&&w<50&&r.status==="ACTIVE"&&r.published_online===true;
+    if(!r.incoming_date||!(r.oos_web||r.oos_retail||red))return `<td>—</td>`;
+    const dt=new Date(r.incoming_date);
+    let s=r.incoming_date;
+    if(!isNaN(dt)){s=dt.toLocaleDateString(_lloc(),{day:'numeric',month:'short'}).replace('.','')
+      .replace(/ (\w)/,(m,c)=>' '+c.toUpperCase());}
+    return `<td style="white-space:nowrap" title="Livraison fournisseur estimée (réassort)">📦 ${s}</td>`;};
+  const un=rows.map(uOf), reU=[Math.min(...un),Math.max(...un)];
+  // Grille CA (verte) : chaque colonne CA a sa propre échelle -> lecture par canal.
+  const caWR=[Math.min(...rows.map(r=>r.web_rev)),Math.max(...rows.map(r=>r.web_rev))];
+  const caRtR=[Math.min(...rows.map(r=>r.retail_rev)),Math.max(...rows.map(r=>r.retail_rev))];
+  const caTR=[Math.min(...rows.map(r=>r.total_rev)),Math.max(...rows.map(r=>r.total_rev))];
+  // Cellule : UNITÉS vendues = chiffre principal (gros + heatmap sur le canal actif).
+  // La vélocité (unités/jour) est rappelée en dessous, en complément.
+  const cell=(kind,u,v)=>{const on=(ch==="all"&&kind==="total")||ch===kind;
+    return `<td${on?` style="background:${gradBlue(u,reU[0],reU[1])};font-weight:600"`:""}>${num.format(Math.round(u))}<span class="sub"> u · ${velf.format(v)}/j</span></td>`;};
+  const caCell=(v,rng)=>`<td class="ca-sec" style="background:${gradGreen(v,rng[0],rng[1])}">${eur.format(v)}</td>`;
+  // Potentiel eCom (ambre) : u/j web « manquantes » vu la force retail. Vide hors vue Web+Boutiques.
+  const gaps=rows.map(r=>r.ecom_gap||0), gapMax=Math.max(...gaps,0);
+  const gapCell=r=>{if(r.ecom_gap==null||r.ecom_gap<=0)return `<td>—</td>`;
+    return `<td style="background:${gradAmber(r.ecom_gap,0,gapMax)};font-weight:600" title="Se vend bien plus vite en boutique qu'en ligne : sous-valorisé en eCom, à pousser. ~${velf.format(r.ecom_gap)} u/j web manquantes au rythme retail.">+${velf.format(r.ecom_gap)}/j</td>`;};
+  const denom=ch==="web"?`web ${d.web_days} j`:ch==="retail"?`retail ${d.retail_days} j`:`web ${d.web_days} j · retail ${d.retail_days} j`;
+  const chTxt=ch==="web"?"Web uniquement.":ch==="retail"?"Boutiques uniquement.":"Web + Boutiques.";
+  let h=`<div class="subcap" style="margin-bottom:8px">${d.count} produit(s) · <b>${num.format(Math.round(tU))} unités</b> · ${velf.format(tVel)} u/j · CA ${eur.format(tR)} sur ${d.days} j. ${chTxt}
+    <br>Sous chaque volume : la vélocité = unités ÷ jours couverts (${denom}). CA en secondaire, net de remise TTC (« Adjusted Price ») sur les deux canaux : la remise 1+1 est répartie sur les articles, donc un CA par produit reste indicatif.
+    <br>Gap eCom (ambre) = u/j web « manquantes » vu la force retail — fort = produit à pousser en ligne. Visible en vue « Web + Boutiques ».</div>
+    <table><thead><tr><th>Produit</th><th>Cat.</th><th>Genre</th><th>Prix</th>
+      <th class="sortable" onclick="sortProducts('web_units')">U. web${sa('web_units')}</th>
+      <th class="sortable" onclick="sortProducts('retail_units')">U. retail${sa('retail_units')}</th>
+      <th class="sortable" onclick="sortProducts('total_units')">U. total${sa('total_units')}</th>
+      <th class="sortable" onclick="sortProducts('ecom_gap')" title="Gap eCom : produits forts en boutique mais faibles en ligne, à pousser en eCom">Gap eCom${sa('ecom_gap')}</th>
+      <th class="sortable" onclick="sortProducts('web_rev')">CA web${sa('web_rev')}</th>
+      <th class="sortable" onclick="sortProducts('retail_rev')">CA retail${sa('retail_rev')}</th>
+      <th class="sortable" onclick="sortProducts('total_rev')">CA total${sa('total_rev')}</th>
+      <th>Stock Web</th><th>Réappro</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    h+=`<tr><td>${r.title||r.sku||"—"}${oos(r)}<div class="sub">${r.sku||""}</div></td>
+      <td><span class="badge-cat cat-${(r.category||'').toLowerCase()}">${r.category}</span></td>
+      <td>${gtag(r.gender)} <span class="sub">${r.gender}</span></td>
+      <td>${r.price!=null?eur2.format(r.price):"—"}</td>
+      ${cell("web",r.web_units,r.web_vel)}${cell("retail",r.retail_units,r.retail_vel)}${cell("total",r.total_units,r.total_vel)}
+      ${gapCell(r)}
+      ${caCell(r.web_rev,caWR)}${caCell(r.retail_rev,caRtR)}${caCell(r.total_rev,caTR)}
+      ${stockCell(r)}${incCell(r)}</tr>`;});
+  return h+`</tbody></table>`;
+}
+function _prodReload(){ loaded["products"]=true; loadProducts(); }
+
+// ---------- Alertes Google (fenêtre 1/3/7 j) ----------
+let _gadsWin=3; const _gadsCache={};
+async function loadGadsAlerts(){
+  const el=document.getElementById("gads-alerts"); if(!el)return;
+  if(_gadsCache[_gadsWin]){ renderGadsAlerts(_gadsCache[_gadsWin]); return; }
+  el.innerHTML=`<div class="loading">Chargement des alertes (${_gadsWin} j)…</div>`;
+  const d=await getJSON(`/api/google/alerts?window=${_gadsWin}`); if(!d)return;
+  if(!d.ok){el.innerHTML=`<div class="empty">Alertes Google indisponibles : ${d.error||"erreur"}</div>`;return;}
+  _gadsCache[_gadsWin]=d; renderGadsAlerts(d);
+}
+function renderGadsAlerts(d){
+  const el=document.getElementById("gads-alerts"); const W=d.window;
+  const AB={LOWER:["⬇️ Réduire / revoir","ab-red"],
+            HOLD_DECLINING:["✋ Ne pas scaler · tendance en baisse","ab-red"],
+            SCALE:["⬆️ Scaler","ab-green"],REVIEW_UNDER:["🔍 Sous-délivré","ab-amber"]};
+  const rz=v=>v==null?"—":v.toFixed(2);
+  const chg=v=>v==null?"":`<span class="sub">${v>0?"+":""}${v} %</span>`;
+  const tbl=(items,withBudget)=>items.length?`<table><thead><tr><th>${withBudget?"Campagne":"Asset group"}</th>
+      <th>Action</th><th>ROAS ${W}j</th><th>Dépense</th><th>Conv.</th><th>CPA</th>
+      ${withBudget?"<th>Budget / util</th>":""}<th>Recommandation</th></tr></thead><tbody>`+
+    items.map(a=>{const b=AB[a.action]||["",""];
+      return `<tr><td>${withBudget?a.campaign_name:a.asset_group_name}</td>
+        <td><span class="abadge ${b[1]}">${b[0]}</span></td>
+        <td>${rz(a.roas)}<span class="sub">←${rz(a.roas_prev)}</span>${chg(a.chg)}</td>
+        <td>${eur.format(a.cost||0)}</td><td>${a.conv??"—"}</td><td>${a.cpa?eur2.format(a.cpa):"—"}</td>
+        ${withBudget?`<td>${a.budget?eur.format(a.budget):"—"}${a.util!=null?` · util ${a.util}%`:""}</td>`:""}
+        <td><span class="sub">${a.reason||""}</span></td></tr>`;}).join("")+
+    `</tbody></table>`:`<div class="empty">Rien à signaler ✓</div>`;
+  el.innerHTML=`
+    <div class="alert"><h3 style="color:var(--accent)">🎛️ Campagnes · fenêtre ${W} j</h3>${tbl(d.campaigns,true)}</div>
+    <div class="alert" style="margin-top:14px"><h3>🧩 Asset groups · fenêtre ${W} j</h3>${tbl(d.asset_groups,false)}</div>
+    <div class="subcap" style="margin-top:10px">Comparaison des ${W} derniers jours (jusqu'à hier) vs les ${W} précédents.
+      Entités sous ${eur.format(d.gate)} de dépense sur la fenêtre ignorées (diffusion trop faible pour juger).
+      <b>Règles de scale :</b> jamais sous <b>ROAS ${d.scale_floor}</b>, jamais si le ROAS baisse de
+      <b>${Math.abs(d.scale_trend_block)} %</b> ou plus. Plancher de coupe : ROAS ${d.roi_floor}.
+      Le segment NL est exclu (voir son propre bloc).</div>`;
+}
+
+// ---------- Diagnostic PMax ----------
+async function loadPmax(){
+  const el=document.getElementById("pmax-body"); if(!el)return;
+  const d=await getJSON("/api/pmax");
+  if(!d){el.innerHTML=`<div class="empty">PMax indisponible.</div>`;return;}
+  if(!d.ok){el.innerHTML=`<div class="empty">PMax indisponible : ${d.error||"erreur"}</div>`;return;}
+  el.innerHTML=pmaxBrand(d.search)+pmaxTroas(d.troas)+pmaxProducts(d.products)
+              +pmaxStrength(d.ad_strength)+pmaxBlocked(d.assets_blocked)+pmaxCats(d.categories);
+}
+function pmaxBrand(rows){
+  if(!rows||!rows.length)return "";
+  let h=`<div class="clbl">🏷️ Cannibalisation de marque vs conquête</div>
+    <div class="cdef" style="margin-bottom:8px">Part des conversions PMax venant de requêtes de <b>votre marque</b>
+    (vous payez un trafic que la campagne MARQUE capterait moins cher) vs requêtes de <b>marques concurrentes</b>
+    (conquête — plutôt un bon signe). Agrégat période.</div>
+    <table><thead><tr><th>Campagne</th><th>Conv. totales</th><th>Conv. marque</th><th>% marque</th><th>Conv. concurrents</th><th>% conquête</th></tr></thead><tbody>`;
+  rows.forEach(r=>{const w=r.pct_brand!=null&&r.pct_brand>0.15;
+    h+=`<tr><td>${r.campaign_name}</td><td>${r.conv_total??"—"}</td>
+      <td class="${w?"warn":""}">${r.conv_brand??"—"}</td>
+      <td class="${w?"warn":""}">${r.pct_brand!=null?pct(r.pct_brand):"—"}${w?" ⚠️":""}</td>
+      <td class="tg">${r.conv_compet??"—"}</td>
+      <td class="tg">${r.pct_compet!=null?pct(r.pct_compet):"—"}</td></tr>`;});
+  return h+`</tbody></table>`;
+}
+function pmaxTroas(rows){
+  if(!rows||!rows.length)return "";
+  let h=`<div class="clbl sep">🎯 tROAS cible vs ROAS réalisé <span style="font-weight:400;font-size:.72rem;color:var(--muted)">(30 j)</span></div>
+    <div class="cdef" style="margin-bottom:8px">ROAS réalisé nettement <b>sous</b> la cible = cible trop haute (bride la diffusion) ou performance insuffisante.
+    Nettement <b>au-dessus</b> = cible trop basse, marge pour scaler. « Util. budget » = dépense ÷ (budget quotidien × 30).</div>
+    <table><thead><tr><th>Campagne</th><th>Stratégie</th><th>tROAS cible</th><th>ROAS réalisé</th><th>Écart</th><th>Budget/j</th><th>Util. budget</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const gap=(r.target_roas&&r.roas_real)?(r.roas_real/r.target_roas-1):null;
+    const bad=gap!=null&&gap<-0.15, good=gap!=null&&gap>0.15;
+    h+=`<tr><td>${r.campaign_name}</td><td><span class="pill">${r.bidding_strategy||"—"}</span></td>
+      <td>${r.target_roas?r.target_roas.toFixed(2):"—"}</td>
+      <td class="${bad?"warn":(good?"tg":"")}">${r.roas_real?r.roas_real.toFixed(2):"—"}</td>
+      <td class="${bad?"warn":(good?"tg":"")}">${gap!=null?(gap>0?"+":"")+(gap*100).toFixed(0)+" %":"—"}</td>
+      <td>${r.daily_budget?eur.format(r.daily_budget):"—"}</td>
+      <td>${r.budget_util!=null?pct(r.budget_util):"—"}</td></tr>`;});
+  return h+`</tbody></table>`;
+}
+function pmaxProducts(p){
+  if(!p||!p.n)return "";
+  let h=`<div class="clbl sep">📦 Concentration produit &amp; zombies</div>
+    <div class="cdef" style="margin-bottom:8px">${num.format(p.n)} produits ont dépensé sur 30 j (${eur.format(p.total_cost||0)}).
+    <b>Le top 20 % des produits concentre ${p.top20_share!=null?pct(p.top20_share):"—"} de la dépense.</b>
+    « Zombies » = ≥ 20 € dépensés et <b>zéro conversion</b> — candidats à l'exclusion du flux.</div>`;
+  if(p.zombies&&p.zombies.length){
+    h+=`<table><thead><tr><th>Produit zombie</th><th>Dépense</th><th>Clics</th><th>Conv.</th></tr></thead><tbody>`;
+    p.zombies.forEach(r=>{h+=`<tr><td>${r.title||r.product_item_id}</td>
+      <td class="warn">${eur.format(r.cost)}</td><td>${num.format(r.clicks||0)}</td><td>0</td></tr>`;});
+    const tot=p.zombies.reduce((a,r)=>a+r.cost,0);
+    h+=`</tbody></table><div class="subcap" style="margin-top:6px">Total gaspillé sur ces produits : <b>${eur.format(tot)}</b> / 30 j.</div>`;
+  } else { h+=`<div class="empty">Aucun produit zombie (≥ 20 € sans conversion) ✓</div>`; }
+  return h;
+}
+function pmaxStrength(rows){
+  if(!rows||!rows.length)return "";
+  const B={POOR:"ab-red",AVERAGE:"ab-amber",GOOD:"ab-green",EXCELLENT:"ab-green"};
+  let h=`<div class="clbl sep">💪 Ad strength par asset group</div>
+    <div class="cdef" style="margin-bottom:8px">Note Google de complétude/diversité des créas. <b>POOR/AVERAGE</b> = manque d'assets (titres, images, vidéos) — c'est le levier le plus simple.</div>
+    <table><thead><tr><th>Campagne</th><th>Asset group</th><th>Ad strength</th><th>Statut campagne</th></tr></thead><tbody>`;
+  rows.forEach(r=>{h+=`<tr><td>${r.campaign_name}</td><td>${r.asset_group_name}</td>
+    <td><span class="abadge ${B[r.ad_strength]||""}">${r.ad_strength||"—"}</span></td>
+    <td><span class="pill">${r.campaign_status||"—"}</span></td></tr>`;});
+  return h+`</tbody></table>`;
+}
+function pmaxBlocked(rows){
+  if(!rows||!rows.length)return `<div class="clbl sep">🚫 Assets non diffusables</div><div class="empty">Aucun asset bloqué ✓</div>`;
+  let h=`<div class="clbl sep">🚫 Assets non diffusables</div>
+    <div class="cdef" style="margin-bottom:8px">Assets présents mais que Google ne sert pas (refus, format, éligibilité). Chaque asset bloqué réduit les combinaisons possibles.</div>
+    <table><thead><tr><th>Campagne</th><th>Asset group</th><th>Type</th><th>Statut</th><th>Nb</th></tr></thead><tbody>`;
+  rows.forEach(r=>{h+=`<tr><td>${r.campaign_name}</td><td>${r.asset_group_name}</td>
+    <td><span class="pill">${r.field_type}</span></td><td class="warn">${r.primary_status}</td>
+    <td>${num.format(r.n)}</td></tr>`;});
+  return h+`</tbody></table>`;
+}
+function pmaxCats(rows){
+  if(!rows||!rows.length)return "";
+  let h=`<div class="clbl sep">🔎 Top catégories de requêtes</div>
+    <div class="cdef" style="margin-bottom:8px">Catégories agrégées par Google (les requêtes exactes ne sont pas exposées pour PMax). 🏷️ = votre marque, ⚔️ = concurrent.</div>
+    <table><thead><tr><th>Campagne</th><th>Catégorie</th><th>Impr.</th><th>Clics</th><th>Conv.</th></tr></thead><tbody>`;
+  rows.forEach(r=>{const tag=r.is_brand?"🏷️ ":(r.is_compet?"⚔️ ":"");
+    h+=`<tr><td>${r.campaign_name}</td><td>${tag}${r.category_label}</td>
+      <td>${num.format(r.impressions||0)}</td><td>${num.format(r.clicks||0)}</td>
+      <td>${r.conversions??"—"}</td></tr>`;});
+  return h+`</tbody></table>`;
 }
 function renderGoogleNl(nl){
   const el=document.getElementById("google-nl"); if(!el)return;
   const camps=(nl&&nl.campaigns)||[];
-  if(!camps.length){el.innerHTML=`<div class="empty">Aucune dépense Google « NL » sur la période (test démarré le 03/07/2026).</div>`;return;}
+  if(!camps.length){el.innerHTML=`<div class="empty">Aucune dépense Google du test Europe sur la période (test démarré le 03/07/2026).</div>`;return;}
   const t=camps.reduce((a,c)=>({c:a.c+(c.cost||0),v:a.v+(c.value||0),n:a.n+(c.conv||0)}),{c:0,v:0,n:0});
   const roas=t.c?t.v/t.c:0, cpa=t.n?t.c/t.n:0;
   let h=`<div class="kpis">${card("Coût",eur.format(t.c))}${card("Conversions",num.format(Math.round(t.n)))}${card("Valeur",eur.format(t.v))}${card("ROAS",roas.toFixed(2),"",roas<ROI_FLOOR)}${roas3Card(nl.roas3)}</div>`;
@@ -1074,16 +1526,43 @@ function buildChapRail(tab){
   window.addEventListener("resize",_chapSpy);
   spy();
 }
+// Sélecteur « Period » : visible seulement là où il pilote un graphe quotidien
+// (Vue d'ensemble en grain Jour, ou onglets Meta/Google). Masqué sinon.
+function updatePeriodVis(){
+  const el=document.getElementById("period-ctrl"); if(!el)return;
+  const a=document.querySelector(".tab.active"); const tab=a?a.dataset.tab:"cos";
+  // Uniquement dans Meta/Google (pas de grain là-bas). En Vue d'ensemble, le grain suffit.
+  const show=(tab==="meta"||tab==="google");
+  el.style.display=show?"":"none";
+}
+const TABS=["cos","cro","products","meta","google"];
+// Ancres de SECTION (dans un onglet) : #test-europe, #lpl-club.
+const SECTIONS={"test-europe":{tab:"cos",el:"sec-test-europe"},"lpl-club":{tab:"cos",el:"sec-lpl-club"}};
+function hashKey(){return (location.hash||"").replace(/^#/,"");}
+function tabFromHash(){const h=hashKey();if(TABS.includes(h))return h;if(SECTIONS[h])return SECTIONS[h].tab;return "cos";}
+function scrollToSection(){const s=SECTIONS[hashKey()];if(!s)return;
+  // le bloc se remplit en asynchrone -> on scrolle après un court délai pour laisser la mise en page se poser.
+  setTimeout(()=>{const el=document.getElementById(s.el);
+    if(el)window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-12,behavior:"smooth"});},500);}
 function activate(tab){
+  if(!TABS.includes(tab))tab="cos";
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+tab));
-  buildChapRail(tab);
+  // Ancre partageable. On NE réécrit PAS le hash si c'est déjà une section de cet onglet (on la garde).
+  const h=hashKey();
+  if(h!==tab && !(SECTIONS[h]&&SECTIONS[h].tab===tab))history.replaceState(null,"","#"+tab);
+  buildChapRail(tab); updatePeriodVis();
   if(loaded[tab])return;        // déjà chargé pour la période courante -> bascule instantanée
   loaded[tab]=true;
   if(tab==="cos")loadCos(); if(tab==="cro")loadCro(); if(tab==="meta")loadMeta(); if(tab==="google")loadGoogle();
+  if(tab==="products")loadProducts();
 }
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>activate(t.dataset.tab)));
 document.querySelectorAll("#grain-global .ctbtn").forEach(b=>b.addEventListener("click",()=>setGrain(b.dataset.g)));
+document.querySelectorAll("#gads-win-tabs .subtab").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("#gads-win-tabs .subtab").forEach(x=>x.classList.toggle("active",x===b));
+  _gadsWin=parseInt(b.dataset.win); loadGadsAlerts();
+}));
 document.querySelectorAll("#cro-prod-tabs .subtab").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("#cro-prod-tabs .subtab").forEach(x=>x.classList.toggle("active",x===b));
   loadCroProducts(parseInt(b.dataset.pd));
@@ -1099,10 +1578,309 @@ document.getElementById("days").addEventListener("change",e=>{DAYS=parseInt(e.ta
   const active=document.querySelector(".tab.active").dataset.tab;activate(active);});
 const _ba=document.getElementById("btn-alerts");
 if(_ba) _ba.addEventListener("click",()=>loadMetaAlerts(true));
+// --- Filtres Performance produit ---
+(function(){
+  const search=document.getElementById("prod-search");
+  if(search)search.addEventListener("input",e=>{_prodState.q=e.target.value.trim();
+    clearTimeout(_prodTimer);_prodTimer=setTimeout(_prodReload,300);});
+  const days=document.getElementById("prod-days");
+  if(days)days.addEventListener("change",e=>{_prodState.days=parseInt(e.target.value);_prodReload();});
+  const dtag=document.getElementById("prod-dtag");
+  if(dtag)dtag.addEventListener("change",e=>{_prodState.date_tag=e.target.value;_prodReload();});
+  document.querySelectorAll("#prod-cat .ctbtn").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll("#prod-cat .ctbtn").forEach(x=>x.classList.toggle("on",x===b));
+    _prodState.category=b.dataset.c;_prodReload();}));
+  document.querySelectorAll("#prod-gender input").forEach(cb=>cb.addEventListener("change",()=>{
+    _prodState.genders=[...document.querySelectorAll("#prod-gender input:checked")].map(x=>x.value);
+    _prodReload();}));
+  const oos=document.getElementById("prod-oos");
+  if(oos)oos.addEventListener("change",e=>{_prodState.oos=e.target.checked;_prodReload();});
+  document.querySelectorAll("#prod-channel .ctbtn").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll("#prod-channel .ctbtn").forEach(x=>x.classList.toggle("on",x===b));
+    _prodState.channel=b.dataset.ch;_prodReload();}));
+})();
+// ============ i18n FR/EN — moteur de traduction global ============
+// Dictionnaire = correspondance EXACTE du texte d'un nœud (labels, titres, en-têtes, boutons…).
+const I18N_DICT={
+  // En-tête / chrome
+  "Dashboard Marketing":"Marketing Dashboard","Période":"Period","Déconnexion":"Log out",
+  "7 jours":"7 days","14 jours":"14 days","30 jours":"30 days","90 jours":"90 days",
+  // Onglets
+  "Vue d'ensemble":"Overview","CRO / Site":"CRO / Site","Performance produit":"Product performance",
+  // Grain
+  "Vue par":"View by","Jour":"Day","Semaine":"Week","Mois":"Month",
+  // Sections Vue d'ensemble
+  "Indicateurs du mois en cours · MTD (jusqu'à hier)":"Current-month indicators · MTD (through yesterday)",
+  "Objectif du mois & projection":"Monthly target & projection","Évolution quotidienne":"Daily trend",
+  "Dépense pub vs CA Shopify & COS":"Ad spend vs Shopify revenue & COS",
+  "📊 Performance & COS":"📊 Performance & COS","👥 Clients · nouveaux vs fidèles":"👥 Customers · new vs returning",
+  "🎟️ LPL Club · fidélité":"🎟️ LPL Club · loyalty",
+  "Omnicanal · effet ROPO (mensuel, tous canaux)":"Omnichannel · ROPO effect (monthly, all channels)",
+  "👓 Gammes de prix des montures":"👓 Frame price ranges",
+  // KPI cards
+  "Sessions (MTD)":"Sessions (MTD)","CVR (MTD)":"CVR (MTD)","Commandes (MTD)":"Orders (MTD)",
+  "CA Shopify (MTD)":"Shopify revenue (MTD)","Dépense pub (MTD)":"Ad spend (MTD)","COS blended (MTD)":"Blended COS (MTD)",
+  "Coût (MTD)":"Cost (MTD)","ROAS (MTD)":"ROAS (MTD)","Coût/conv. (MTD)":"Cost/conv. (MTD)",
+  "Conversions (MTD)":"Conversions (MTD)","Valeur conv. (MTD)":"Conv. value (MTD)",
+  // En-têtes de tableaux (communs)
+  "Produit":"Product","Cat.":"Cat.","Genre":"Gender","Prix":"Price","Stock Web":"Web stock","Réappro":"Restock",
+  "Période":"Period","Cmd":"Orders","CA":"Revenue","ATV":"ATV","Sessions":"Sessions","CVR":"CVR",
+  "Coût":"Cost","Conv.":"Conv.","Valeur":"Value","ROAS":"ROAS","Type":"Type","Campagne":"Campaign","Segment":"Segment",
+  "U. web":"Web units","U. retail":"Retail units","U. total":"Total units",
+  "CA web":"Web rev.","CA retail":"Retail rev.","CA total":"Total rev.","Gap eCom":"eCom gap",
+  "Homme":"Men","Femme":"Women","Mixte":"Unisex","Indéterminé":"Unknown","Cmd web":"Web orders","Adhésions":"Sign-ups",
+  "Taux d'adhésion":"Sign-up rate","Clients":"Customers","Cmd moy.":"Avg orders",
+  "Taux réachat (2+)":"Repurchase rate (2+)","Taux 3+ achats":"3+ orders rate",
+  "CA moyen/client":"Avg revenue/customer","Panier moyen":"Avg order value","Étape / taux":"Step / rate",
+  // Boutons filtres produit
+  "Web + Boutiques":"Web + Retail","Web":"Web","Boutiques":"Retail","Tous":"All","Optique":"Optical","Solaire":"Sun","Autre":"Other",
+  "Rupture uniquement":"Out of stock only","Détail par pays":"By country","Métrique":"Metric","Canal":"Channel","Tag collection":"Collection tag",
+  "▸ Détail par pays":"▸ By country","▾ Détail par pays":"▾ By country","Total":"Total",
+  "Depuis le 03/07":"Since 03/07","Pays":"Country",
+  // États
+  "Chargement…":"Loading…","Indisponible.":"Unavailable.",
+  // Intitulés de sections (texte complet)
+  "🇪🇺 Test Europe · AT-DE-ES-IT-NL-PT (hors COS principal, depuis le 03/07)":"🇪🇺 Europe test · AT-DE-ES-IT-NL-PT (excl. core COS, since 03/07)",
+  "🇪🇺 Test Europe · AT-DE-ES-IT-NL-PT":"🇪🇺 Europe test · AT-DE-ES-IT-NL-PT",
+  "(isolé du principal, depuis 03/07)":"(isolated from core, since 03/07)",
+  "🏷️ Ventes Braderies":"🏷️ Braderie sales",
+  "(canal Syncio / thebradery — hors CA & COS principal)":"(Syncio / thebradery channel — excl. core revenue & COS)",
+  "🎯 Acquisition web · coût d'un nouveau client":"🎯 Web acquisition · cost per new customer","(tous canaux)":"(all channels)",
+  // --- Lot complet (extraction exhaustive) ---
+  "Indicateurs du mois · MTD (jusqu'à hier)":"Month indicators · MTD (through yesterday)",
+  "COS objectif mois":"Monthly COS target","COS réalisé (MTD)":"Actual COS (MTD)","COS à tenir (jours restants)":"COS to hold (days left)",
+  "ROAS réalisé":"Actual ROAS","ROAS réalisé nettement":"Actual ROAS clearly","Réalisé (à hier)":"Actual (through yesterday)",
+  "Projeté fin de mois":"Projected end of month","Objectif":"Target","Données insuffisantes ce mois-ci.":"Not enough data this month.",
+  "Dépense":"Spend","Dépense pub":"Ad spend","Coût":"Cost","Coût/conv.":"Cost/conv.","Coût/achat":"Cost/purchase",
+  "Coût / nouveau client web":"Cost / new web customer","Écart":"Gap","vs préc.":"vs prev.","vs 7 précédents":"vs previous 7",
+  "Catégorie":"Category","Stock":"Stock","Nouveaux":"New","Nouveaux web":"New web","Fidèle":"Returning","Fidèles":"Returning",
+  "Clients boutique":"Store customers","Clients web":"Web customers","Global (boutique + web)":"Global (store + web)",
+  "Commande":"Order","Unités":"Units","Montures":"Frames","Montures + Solaires.":"Frames + Sun.","Stratégie":"Strategy",
+  "Comment lire une ligne":"How to read a row","Sur cette page":"On this page","État des données":"Data status",
+  "Rafraîchir les sessions":"Refresh sessions","Chargement des alertes…":"Loading alerts…","Surévalué":"Overvalued",
+  "Événements GA4 :":"GA4 events:","Dégradé par colonne":"Gradient per column","Par campagne":"By campaign","Par type de campagne":"By campaign type",
+  "Détail par campagne & PMax":"Campaign & PMax detail","Détail par canal · 7 derniers jours":"By channel · last 7 days",
+  "Tendance des sessions par canal":"Session trend by channel","Qualité du trafic · canaux d'acquisition GA4":"Traffic quality · GA4 acquisition channels",
+  "Funnel & taux de passage":"Funnel & conversion rates","Checkout initié":"Checkout started","Étape / taux":"Step / rate",
+  "Disponibilité réelle · stock Shopify":"Real availability · Shopify stock","Écoulement produit · concentration / dilution":"Product sell-through · concentration / dilution",
+  "Produits en Rupture":"Out-of-stock products","Rupture web":"Web out of stock","Livraison fournisseur estimée (réassort)":"Estimated supplier delivery (restock)",
+  "Coût, Conversions, CTR & ROAS / jour":"Cost, Conversions, CTR & ROAS / day","Coût, Valeur de conversion & ROI / jour":"Cost, Conversion value & ROI / day",
+  "Asset groups — PMax (groupes de composants)":"Asset groups — PMax","Aucun asset bloqué ✓":"No blocked asset ✓","Rien à signaler ✓":"Nothing to report ✓",
+  "Aucun asset group sur la période (campagnes PMax sans dépense ?).":"No asset group over the period (PMax campaigns with no spend?).",
+  "Aucun produit zombie (≥ 20 € sans conversion) ✓":"No zombie product (≥ €20 with no conversion) ✓",
+  "Aucune dépense Google du test Europe sur la période (test démarré le 03/07/2026).":"No Google spend for the Europe test over the period (test started 03/07/2026).",
+  "Aucune dépense Meta du test Europe sur la période (test démarré le 03/07/2026).":"No Meta spend for the Europe test over the period (test started 03/07/2026).",
+  "Aucune vente Braderie sur la période.":"No Braderie sales over the period.","Pas de données pays sur la période.":"No country data over the period.",
+  "Pas encore de données NL (test démarré le 03/07/2026).":"No Europe test data yet (test started 03/07/2026).",
+  "Pas encore de données ROPO.":"No ROPO data yet.","Pas encore de données canaux (le Job doit tourner).":"No channel data yet (the Job must run).",
+  "Pas encore de données clients.":"No customer data yet.","Pas encore de données d'adhésion.":"No sign-up data yet.","Pas encore de données.":"No data yet.",
+  "Note Google de complétude/diversité des créas.":"Google's rating of creative completeness/diversity.",
+  "Taux d'adhésion web":"Web sign-up rate","Réachat : LPL Club vs Sans Club":"Repurchase: LPL Club vs No Club","dans le COS.":"in the COS.",
+  "Estimation Homme/Femme à partir du":"Men/Women estimate based on the","prénom de livraison":"shipping first name","identifiés":"identified",
+  "Semaine (lun.)":"Week (Mon.)","% conquête":"% prospecting","% nouveaux":"% new","Part du top 3 :":"Top 3 share:",
+  "TEST EUROPE · AT-DE-ES-IT-NL-PT":"EUROPE TEST · AT-DE-ES-IT-NL-PT","retirés":"removed",
+  "Ventes « comptoir » (lunettes":"Counter sales (glasses","nombre de montures vendues":"number of frames sold","non ajustées à la vue":"without prescription lenses",
+  "Répartition des ventes de montures par gamme de prix, en":"Frame sales split by price range, in","(gamme = prix standard":"(range = standard price",
+  "Part de chaque gamme dans le":"Share of each price range in",") : part Solaires vs Optiques, en":"): Sun vs Optical share, in","Montures + Solaires.":"Frames + Sun.",
+  "Total gaspillé sur ces produits :":"Total wasted on these products:","zéro conversion":"zero conversion","« Zombies » = ≥ 20 € dépensés et":"\"Zombies\" = ≥ €20 spent and",
+  "— candidats à l'exclusion du flux.":"— candidates for feed exclusion.","Règles de scale :":"Scaling rules:","on ne propose un scale qu'au-dessus de":"we only suggest scaling above",
+  "(sous ce seuil, aucune alerte de scale n'est émise) et jamais si le ROAS":"(below this threshold, no scale alert is issued) and never if ROAS",
+  ", jamais si le ROAS baisse de":", never if ROAS drops by","(conquête — plutôt un bon signe). Agrégat période.":"(prospecting — rather a good sign). Period aggregate.",
+  "Part des conversions PMax venant de requêtes de":"Share of PMax conversions from queries of",
+  "(vous payez un trafic que la campagne MARQUE capterait moins cher) vs requêtes de":"(you pay for traffic the BRAND campaign would capture more cheaply) vs queries of",
+  "Estimation Homme/Femme à partir du":"Men/Women estimate based on the","(commandes web). % calculés sur les prénoms identifiés.":"(web orders). % based on identified first names.",
+  "= dépense pub (Meta + Google) ÷ nouveaux clients":"= ad spend (Meta + Google) ÷ new customers",
+  "justifie la pub web même quand la vente finit en boutique":"justifies web ads even when the sale ends in store",
+  "(la pub stimule surtout l'acquisition en ligne). CAC":"(ads mainly drive online acquisition). CAC",
+  "chaque client est compté une fois par période, jusqu'à hier (J-1).":"each customer is counted once per period, through yesterday (D-1).",
+  ": sa 1ʳᵉ commande,":": their 1st order,","déjà acheté sur le site avant":"already bought on the site before",
+  ": il avait déjà commandé dans les 3 années précédant la période.":": they had already ordered in the 3 years before the period.",
+  "aucune commande depuis 3 ans (un client réactivé après 3 ans redevient nouveau).":"no order for 3 years (a customer reactivated after 3 years becomes new again).",
+  ": parmi les nouveaux web, ceux qui sont":": among new web customers, those who are","déjà acheté sur le site avant":"already bought on the site before",
+  "(il découvre/recherche en ligne, puis achète en magasin) — c'est ce qui":"(they discover/search online, then buy in store) — this is what",
+  "— parmi les clients d'un canal ce mois-ci, combien avaient déjà acheté dans l'autre avant":"— among a channel's customers this month, how many had already bought in the other before",
+  "↳ dont déjà clients en boutique":"↳ of which already store customers","↳ dont déjà clients en ligne":"↳ of which already online customers",
+  "uniquement au tableau Clients":"only to the Customers table","non compté":"not counted",
+  "= begin_checkout (déclenché au chargement de la 1ʳᵉ page de checkout Shopify) ·":"= begin_checkout (fired on load of the 1st Shopify checkout page) ·",
+  "= pertes entre le panier et l'arrivée sur la page de paiement.":"= losses between cart and reaching the checkout page.",
+  "= purchase. Un repli du taux":"= purchase. A drop in the","= manque d'assets (titres, images, vidéos) — c'est le levier le plus simple.":"= missing assets (headlines, images, videos) — the simplest lever.",
+  "du moins bon (rose) au meilleur (bleu). Pastille = vs objectif quotidien :":"from worst (pink) to best (blue). Dot = vs daily target:",
+  ". Couleur = intensité du % par colonne.":". Colour = % intensity per column.","; couleur = intensité du % par colonne.":"; colour = % intensity per column.",
+  "du tableau Performance & COS principal ci-dessous.":"from the main Performance & COS table below.",
+  "(groupes comparables). Réachat = % ayant passé ≥ 2 commandes.":"(comparable groups). Repurchase = % with ≥ 2 orders.",
+  ": clients uniques ayant passé ≥ 1 commande web. ·":": unique customers with ≥ 1 web order. ·",": nombre moyen de commandes par client. ·":": average number of orders per customer. ·",
+  ": % de clients ayant commandé ≥ 2 fois. ·":": % of customers with ≥ 2 orders. ·",": % ayant commandé ≥ 3 fois. ·":": % with ≥ 3 orders. ·",
+  ": cumul total dépensé par client, en moyenne. ·":": average total spend per customer. ·",": valeur moyenne d'une commande (calculé par client puis moyenné).":": average value of an order (computed per customer then averaged).",
+  "(≥ 5 ventes sur 14 j · priorité)":"(≥ 5 sales over 14 d · priority)","Produits (Montures + Solaires) qui ont vendu ces 14 derniers jours mais":"Products (Frames + Sun) that sold in the last 14 days but",
+  "Commandes via le canal Braderie (Syncio / logistique@thebradery.com). CA net TTC,":"Orders via the Braderie channel (Syncio / logistique@thebradery.com). Net revenue incl. VAT,",
+  "🎯 tROAS cible vs ROAS réalisé":"🎯 Target tROAS vs actual ROAS","🏷️ Cannibalisation de marque vs conquête":"🏷️ Brand cannibalisation vs prospecting",
+  "💪 Ad strength par asset group":"💪 Ad strength by asset group","🔁 Web ↔ boutique":"🔁 Web ↔ store","🔎 Top catégories de requêtes":"🔎 Top query categories",
+  "🕶️ Comptoir · Solaires vs Optiques":"🕶️ Counter · Sun vs Optical","🧑‍🤝‍🧑 Genre estimé (web)":"🧑‍🤝‍🧑 Estimated gender (web)",
+  "Tunnel de conversion · GA4 · J-1 / 3 j / 7 j (vs période précédente)":"Conversion funnel · GA4 · D-1 / 3 d / 7 d (vs previous period)",
+  "⛽ Ads affamés · performaient avant, plus alimentés par Meta":"⛽ Starved ads · performed before, no longer fed by Meta",
+  "⛽ Ads réalimentés · regagnent du budget et performent":"⛽ Re-fed ads · regaining budget and performing",
+  "🔍 Rechercher un produit (ex. Ann…)":"🔍 Search a product (e.g. Ann…)","🔍 Rechercher (nom ou SKU)…":"🔍 Search (name or SKU)…",
+  "Dashboard Marketing - Le Petit Lunetier":"Marketing Dashboard - Le Petit Lunetier",
+  // Modale clé Meta
+  "🔑 Clé Meta":"🔑 Meta key","🔑 Mettre à jour la clé Meta":"🔑 Update the Meta key","Fermer":"Close","Valider et enregistrer":"Validate and save",
+  // Libellés de graphiques (Chart.js)
+  "Dépense Meta":"Meta spend","Dépense Google":"Google spend","CA Shopify":"Shopify revenue","COS %":"COS %",
+  "Valeur conv.":"Conv. value","ROI (valeur/coût)":"ROI (value/cost)","Coût (€)":"Cost (€)","Conversions":"Conversions",
+  // Grosses légendes (nœuds de texte complets)
+  "Estimation":"Estimate",
+  "Homme/Femme d'après le prénom de livraison (le prénom ne détermine pas le genre réel). Méthode hybride : dictionnaire FR/EN/AR + base élargie + Claude sur les prénoms rares. « Indéterminé » = prénoms mixtes/non reconnus (% sur le total). Homme/Femme en % des prénoms":"Men/Women based on the shipping first name (the first name does not determine actual gender). Hybrid method: FR/EN/AR dictionary + extended base + Claude on rare first names. \"Unknown\" = mixed/unrecognised first names (% of total). Men/Women as % of",
+  "Projection au rythme actuel (réalisé ÷ jours écoulés × jours du mois). La « reco/jour » est ce qu'il faut faire chaque jour restant pour atteindre l'objectif. Le « COS à tenir » est le COS à réaliser sur le CA restant pour finir le mois pile sur tes deux objectifs.":"Projection at the current pace (actual ÷ days elapsed × days in month). The \"reco/day\" is what to do each remaining day to hit the target. The \"COS to hold\" is the COS to achieve on the remaining revenue to finish the month exactly on both targets.",
+  "Campagnes Meta/Google du test (anciennes « NL - … » + nouvelles « AT-DE-ES-IT-NL-PT - … ») + CA livré en AT/DE/ES/IT/NL/PT. Ces coûts et revenus sont":"Meta/Google campaigns of the test (old \"NL - …\" + new \"AT-DE-ES-IT-NL-PT - …\") + revenue delivered to AT/DE/ES/IT/NL/PT. These costs and revenues are",
+  "⚠️ Données partiellement incomplètes — une source n'est pas à jour (jeton expiré, scraper Mac à l'arrêt, ou trou d'historique). Lis les chiffres récents avec prudence.":"⚠️ Partially incomplete data — a source is not up to date (expired token, Mac scraper stopped, or history gap). Read recent figures with caution.",
+  // KPI / sections Meta & Google
+  "Indicateurs Meta · MTD":"Meta indicators · MTD","Indicateurs Google · MTD":"Google indicators · MTD",
+  "Pilotage · alertes ads & adsets":"Management · ads & adsets alerts","Pilotage · alertes Google":"Management · Google alerts",
+  "Recalculer":"Recompute","ROAS · 3 derniers jours":"ROAS · last 3 days","Achats":"Purchases",
+  "Nouveau":"New","Fidèle":"Returning","ou":"or","Funnel":"Funnel","Produits":"Products","avant remise":"before discount",
+  "Hier (J-1)":"Yesterday (D-1)","3 derniers jours":"Last 3 days","7 derniers jours":"Last 7 days","1 jour":"1 day","1 JOUR":"1 DAY",
+  "Comment lire ce tableau":"How to read this table","Ce filtre s'applique":"This filter applies",
+  "⬇️ Réduire / revoir":"⬇️ Reduce / review","✋ Ne pas scaler · tendance en baisse":"✋ Don't scale · trend down",
+  "✂️→⬆️ Couper puis scaler":"✂️→⬆️ Cut then scale","⬆️ Scaler":"⬆️ Scale","🔍 Sous-délivré":"🔍 Under-delivered",
+  "🔍 Diagnostic PMax":"🔍 PMax diagnostic","(30 derniers jours)":"(last 30 days)","PMax indisponible.":"PMax unavailable.","ROPO indisponible.":"ROPO unavailable.",
+  "Pointillés = 2 derniers jours : attribution GA4 encore provisoire (latence de traitement 24-48 h).":"Dotted = last 2 days: GA4 attribution still provisional (24-48 h processing lag).",
+  "Aucune dépense Google sur la période. Si c'est inattendu, vérifie le bandeau État des données.":"No Google spend over the period. If unexpected, check the Data status bar.",
+  ": une partie de la pub touche aussi des clients existants (retargeting, branding) — à lire en":": part of the ads also reaches existing customers (retargeting, branding) — read as",
+  ". Couleurs : coût élevé = rose / faible = bleu ; nouveaux élevés = bleu / faibles = rose ; dépense = intensité de rose.":". Colours: high cost = pink / low = blue ; high new = blue / low = pink ; spend = pink intensity.",
+  "= cible trop basse, marge pour scaler. « Util. budget » = dépense ÷ (budget quotidien × 30).":"= target too low, room to scale. \"Budget util.\" = spend ÷ (daily budget × 30).",
+  "— CA/Cmd = commandes livrées en AT/DE/ES/IT/NL/PT ; Dépense = campagnes Meta & Google du test (anciennes « NL - … » qui s'éteignent + nouvelles « AT-DE-ES-IT-NL-PT - … » qui prennent le relais) ; COS = dépense ÷ CA.":"— Revenue/Orders = orders delivered to AT/DE/ES/IT/NL/PT ; Spend = Meta & Google campaigns of the test (old \"NL - …\" winding down + new \"AT-DE-ES-IT-NL-PT - …\" taking over) ; COS = spend ÷ revenue.",
+  "= trafic GA4 géolocalisé sur ces 6 pays (base légèrement différente du « shipping » des commandes), CVR = Cmd ÷ Sessions. Segment sorti du tableau principal depuis le 03/07/2026.":"= GA4 traffic geolocated on these 6 countries (base slightly different from order \"shipping\"), CVR = Orders ÷ Sessions. Segment removed from the main table since 03/07/2026.",
+};
+// Règles = fragments récurrents dans les phrases interpolées (chiffres/dates variables). Ancrées, sûres.
+const I18N_RULES=[
+  // --- Santé (nœuds combinés label + statut) ---
+  [/CA \/ Commandes/g,"Revenue / Orders"],[/Dépense Meta/g,"Meta spend"],[/Dépense Google/g,"Google spend"],
+  [/— à jour/g,"— up to date"],[/\bà jour\b/g,"up to date"],[/\ben retard\b/g,"behind"],[/\bbloqué\b/g,"stale"],
+  [/(\d+) trou\(s\)/g,"$1 gap(s)"],[/\((\d+) j\)/g,"($1 d)"],[/\bClients\b/g,"Customers"],
+  // --- Légendes interpolées (tab Produit) ---
+  [/Sous chaque volume :/g,"Under each volume:"],[/la vélocité = unités ÷ jours couverts/g,"velocity = units ÷ covered days"],
+  [/CA en secondaire, net de remise TTC \(« Adjusted Price »\) sur les deux canaux :/g,"Revenue is secondary, net of VAT-incl. discount (\"Adjusted Price\") across both channels:"],
+  [/la remise 1\+1 est répartie sur les articles, donc un CA par produit reste indicatif\./g,"the 1+1 discount is spread across items, so per-product revenue is indicative."],
+  [/Gap eCom \(ambre\) = u\/j web « manquantes » vu la force retail — fort = produit à pousser en ligne\. Visible en vue « Web \+ Boutiques »\./g,"eCom gap (amber) = missing web u\/day given retail strength — high = product to push online. Shown in the \"Web + Retail\" view."],
+  [/Web \+ Boutiques\./g,"Web + Retail."],[/Web uniquement\./g,"Web only."],[/Boutiques uniquement\./g,"Retail only."],
+  [/\bCA (\d)/g,"Revenue $1"],
+  // --- Légendes LPL Club / eu-countries / braderie ---
+  [/Taux d'adhésion web = nouvelles adhésions ÷ commandes web/g,"Web sign-up rate = new sign-ups ÷ web orders"],
+  [/Réachat : LPL Club vs Sans Club/g,"Repurchase: LPL Club vs No Club"],
+  [/— clients web dont la 1re commande date du/g,"— web customers whose 1st order dates from"],
+  [/\(groupes comparables\)\. Réachat = % ayant passé ≥ 2 commandes\./g,"(comparable groups). Repurchase = % with ≥ 2 orders."],
+  [/par pays et par/g,"by country and by"],[/suit le grain global/g,"follows the global grain"],
+  [/Spend non ventilé par pays — cf\. dépense globale du segment ci-dessus\./g,"Spend not split by country — see the segment's global spend above."],
+  // --- Divers interpolés (objectif, meta cards, alertes) ---
+  [/Reco \/ jour/g,"Reco \/ day"],[/\((\d+) j restants?\)/g,"($1 d left)"],[/vs (\d+) j préc\./g,"vs prev. $1 d"],
+  [/\bdont (\d)/g,"of which $1"],[/(\d+) JOURS/g,"$1 DAYS"],
+  [/Alertes · live API Meta · plancher ROI/g,"Alerts · live Meta API · ROI floor"],
+  [/Alertes · campagnes & asset groups · plancher ROI/g,"Alerts · campaigns & asset groups · ROI floor"],
+  [/Comparaison des (\d+) derniers jours \(jusqu'à hier\) vs les (\d+) précédents\./g,"Comparison of the last $1 days (through yesterday) vs the previous $2."],
+  // --- Customers ---
+  [/ci-dessous \(Acquisition et Omnicanal restent tous canaux\)\./g,"below (Acquisition and Omnichannel stay all-channel)."],
+  [/vraiment nouveaux pour la marque/g,"truly new to the brand"],
+  [/le reste sont déjà clients en boutique qui passent au web/g,"the rest are already store customers moving to web"],
+  [/ils apparaissent « nouveaux » en Web mais « fidèles » en Global/g,"they appear \"new\" in Web but \"returning\" in Global"],
+  [/Portée « Web only » : commandes Shopify uniquement\./g,"Scope \"Web only\": Shopify orders only."],[/commandes Shopify uniquement/g,"Shopify orders only"],
+  // --- ROPO ---
+  [/Clients boutique/g,"Store customers"],[/nb de personnes ayant acheté en magasin ce mois/g,"number of people who bought in store this month"],
+  [/combien d'entre eux avaient/g,"how many of them had"],[/\(le % = leur part\)\. Idem en miroir pour le web\./g,"(% = their share). Same mirrored for web."],
+  [/Un client qui achète en boutique après avoir acheté en ligne = effet/g,"A customer who buys in store after buying online ="],
+  [/↳ dont déjà clients en ligne/g,"↳ of which already online customers"],[/↳ dont déjà clients en boutique/g,"↳ of which already store customers"],
+  // --- Gammes de prix ---
+  [/\(gamme = prix standard/g,"(range = standard price"],
+  [/, stable même en promo\)\. Couleur = intensité du % par colonne \(clair → bleu\) pour repérer les tendances\. « Autre » = hors 29\/49\/69\/89 €\. Période en cours = partielle\./g,", stable even during promos). Colour = % intensity per column (light → blue) to spot trends. \"Other\" = outside €29\/49\/69\/89. Current period = partial."],
+  // --- CRO ---
+  [/conversion fiche en baisse/g,"product-page conversion down"],[/indisponible \(brouillon \/ archivée\)/g,"unavailable (draft \/ archived)"],
+  [/voir « Produits en rupture »/g,"see \"Out-of-stock products\""],[/fort\(s\) vendeur\(s\) actuellement en rupture/g,"top seller(s) currently out of stock"],
+  [/Facteurs externes non mesurés \(saisonnalité, pré-soldes, météo, actualité\) : à garder en tête\./g,"Unmeasured external factors (seasonality, pre-sales, weather, news): keep in mind."],
+  [/(\d+) derniers jours/g,"last $1 days"],
+  [/\bproduit\(s\)/g,"product(s)"],[/\bproduits\b/g,"products"],[/\bproduit\b/g,"product"],
+  [/\bunités\b/g,"units"],[/\bunité\b/g,"unit"],[/\bu\/j\b/g,"u/day"],
+  [/\bcommandes\b/g,"orders"],[/\bcommande\b/g,"order"],
+  [/\bpar jour\b/g,"per day"],[/\bpar semaine\b/g,"per week"],[/\bpar mois\b/g,"per month"],
+  [/\bsur (\d+) j\b/g,"over $1 d"],[/\bdepuis le\b/g,"since"],[/\bcumul depuis le\b/g,"cumulative since"],
+  [/\bRupture web\b/g,"Web out of stock"],[/\bRupture\b/g,"Out of stock"],[/\bboutiques\b/g,"stores"],[/\bboutique\b/g,"store"],
+  [/\bnon compté\b/g,"not counted"],
+  [/\bPas encore de données\b/g,"No data yet"],[/\bPas de données\b/g,"No data"],
+];
+const _frOrig=new WeakMap();
+let LANG=(function(){try{
+  const u=new URLSearchParams(location.search).get('lang');   // ?lang=en / ?lang=fr : prioritaire + mémorisé
+  if(u==='en'||u==='fr'){try{localStorage.setItem('lpl_lang',u);}catch(e){}return u;}
+  return localStorage.getItem('lpl_lang')||'fr';
+}catch(e){return 'fr';}})();
+let _i18nObs=null,_i18nPending=false;
+function _trText(fr){
+  const key=fr.trim(); if(key==='')return fr;
+  if(I18N_DICT[key]!=null){const lead=fr.match(/^\s*/)[0],trail=fr.match(/\s*$/)[0];return lead+I18N_DICT[key]+trail;}
+  let out=fr; for(const [re,rep] of I18N_RULES) out=out.replace(re,rep); return out;
+}
+function _walk(node){
+  if(node.nodeType===3){
+    let fr=_frOrig.get(node); const cur=node.nodeValue;
+    if(fr===undefined || (cur!==fr && cur!==_trText(fr))){fr=cur;_frOrig.set(node,fr);}
+    const val=LANG==='en'?_trText(fr):fr; if(node.nodeValue!==val)node.nodeValue=val; return;
+  }
+  if(node.nodeType===1){
+    if(node.tagName==='SCRIPT'||node.tagName==='STYLE'||node.tagName==='CANVAS')return;
+    ['placeholder','title'].forEach(a=>{ if(node.hasAttribute&&node.hasAttribute(a)){
+      const ak='__fr_'+a; let fr=node.getAttribute(ak);
+      if(fr===null){fr=node.getAttribute(a);node.setAttribute(ak,fr);}
+      node.setAttribute(a,LANG==='en'?_trText(fr):fr);}});
+    for(let c=node.firstChild;c;c=c.nextSibling)_walk(c);
+  }
+}
+function applyLang(){
+  if(_i18nObs)_i18nObs.disconnect();
+  _walk(document.body);
+  document.querySelectorAll('#langtoggle .lt-btn').forEach(b=>b.classList.toggle('on',b.dataset.lang===LANG));
+  document.documentElement.lang=LANG;
+  if(_i18nObs)_i18nObs.observe(document.body,{childList:true,subtree:true,characterData:true});
+}
+function setLang(l){LANG=l;try{localStorage.setItem('lpl_lang',l);}catch(e){}applyLang();
+  // Les graphiques (canvas) et les mois formatés ne se retraduisent pas seuls -> on reconstruit l'onglet actif.
+  const a=document.querySelector('.tab.active'); if(a){for(const k in loaded)delete loaded[k]; activate(a.dataset.tab);}}
+_i18nObs=new MutationObserver(()=>{if(_i18nPending)return;_i18nPending=true;
+  requestAnimationFrame(()=>{_i18nPending=false;if(_i18nObs)_i18nObs.disconnect();_walk(document.body);
+    if(_i18nObs)_i18nObs.observe(document.body,{childList:true,subtree:true,characterData:true});});});
+document.querySelectorAll('#langtoggle .lt-btn').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+applyLang();
+// ============ fin i18n ============
+// ---- Mise à jour self-service du token Meta ----
+function openMetaKey(){document.getElementById('metakey-modal').style.display='flex';loadMetaKeyStatus();}
+function closeMetaKey(){document.getElementById('metakey-modal').style.display='none';}
+async function loadMetaKeyStatus(){
+  const el=document.getElementById('metakey-status'); const en=LANG==='en';
+  el.textContent=en?'Loading…':'Chargement…';
+  const d=await getJSON('/api/meta-token/status');
+  if(!d||!d.ok){el.textContent=en?'Status unavailable.':'Statut indisponible.';return;}
+  const exp=d.never_expires?(en?'no expiry':'sans expiration'):(d.expires_at?((en?'expires ':'expire le ')+d.expires_at):(en?'unknown expiry':'expiration inconnue'));
+  el.innerHTML=d.valid?`✅ ${en?'Current token valid':'Token actuel valide'} — ${exp} (${en?'account':'compte'} ${d.account}).`
+                      :`⚠️ ${en?'Current token invalid/expired — replace it.':'Token actuel invalide/expiré — à remplacer.'}`;
+}
+async function saveMetaKey(){
+  const btn=document.getElementById('metakey-save'), msg=document.getElementById('metakey-msg'), en=LANG==='en';
+  const token=(document.getElementById('metakey-input').value||'').trim();
+  if(token.length<30){msg.textContent=en?'Token too short.':'Token trop court.';return;}
+  btn.disabled=true; msg.textContent=en?'Validating…':'Validation…';
+  try{
+    const r=await fetch('/api/meta-token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+    const d=await r.json(); btn.disabled=false;
+    if(d.ok){const exp=d.never_expires?(en?'No expiry.':'Sans expiration.'):(d.expires_at?((en?'Expires ':'Expire le ')+d.expires_at+'.'):'');
+      msg.innerHTML=`✅ ${en?'Saved':'Enregistré'}. ${exp} ${en?'Reload the dashboard.':'Recharge le dashboard.'}`;
+      document.getElementById('metakey-input').value=''; loadMetaKeyStatus();}
+    else msg.textContent='❌ '+(d.error||(en?'Failed.':'Échec.'));
+  }catch(e){btn.disabled=false; msg.textContent='❌ '+e;}
+}
 loadHealth();
-loaded.cos=true;
-buildChapRail("cos");
-loadCos();
+// Ouvre directement l'onglet/section passé en ancre (#products, #test-europe, #lpl-club…).
+activate(tabFromHash()); scrollToSection();
+// Lien collé / bouton précédent : on suit le hash (onglet ET section).
+window.addEventListener("hashchange",()=>{const t=tabFromHash();
+  const cur=document.querySelector(".tab.active");
+  if(!cur||cur.dataset.tab!==t)activate(t);
+  scrollToSection();});
 </script>
 </body>
 </html>
